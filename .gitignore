@@ -20,3 +20,12 @@ Saved/
 # OS
 .DS_Store
 Thumbs.db
+
+# Unreal auto-generated project files
+*.VC.db
+*.VC.opendb
+*.VC.VC.opendb
+*.VC.VC.db
+
+# Optional
+Build/
