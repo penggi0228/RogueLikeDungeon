@@ -7,9 +7,9 @@
 #include "CmnPlayerCharacterBase.generated.h"
 
 /**
- * 共通プレイヤーCharacter基底
+ * 共通プレイヤーCharacterのベースクラス
  *
- * PlayerControllerなどの入力処理から受け取った要求を、
+ * PlayerControllerなどの入力処理から受け取ったリクエストを、
  * 各ゲーム固有Characterへ橋渡しするための共通窓口を提供する
  *
  * このクラス自体にはゲーム固有の移動ロジックは持たせず、

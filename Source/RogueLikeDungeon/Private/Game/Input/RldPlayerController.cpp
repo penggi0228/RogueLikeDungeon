@@ -6,10 +6,12 @@
 #include "EnhancedInputSubsystems.h"
 #include "Engine/GameInstance.h"
 #include "InputCoreTypes.h"
+#include "Math/RotationMatrix.h"
 
 #include "Common/Input/CmnInputRouter.h"
 #include "Common/Input/CmnInputConfig.h"
 #include "Common/Settings/CmnSettingsSubsystem.h"
+#include "Game/Characters/RldPlayerCharacter.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogRldInput, Log, All);
 
@@ -341,7 +343,20 @@ void ARldPlayerController::OnCameraLookTriggered(const FInputActionValue& Value)
         Axis.Y
     );
 
-    // TODO: カメラ制御へAxisを渡す
+    ARldPlayerCharacter* PlayerCharacter = GetRldPlayerCharacter();
+    if (!PlayerCharacter)
+    {
+        UE_LOG(LogRldInput, Warning, TEXT("OnCameraLookTriggered: PlayerCharacter is null"));
+        return;
+    }
+
+    if (!PlayerCharacter->CanAcceptLookInput())
+    {
+        UE_LOG(LogRldInput, Verbose, TEXT("OnCameraLookTriggered: Look input rejected"));
+        return;
+    }
+
+    PlayerCharacter->RequestLookInput(Axis);
 }
 
 /**
@@ -372,7 +387,20 @@ void ARldPlayerController::OnCameraZoomTriggered(const FInputActionValue& Value)
         ZoomValue
     );
 
-    // TODO: カメラ制御へZoomValueを渡す
+    ARldPlayerCharacter* PlayerCharacter = GetRldPlayerCharacter();
+    if (!PlayerCharacter)
+    {
+        UE_LOG(LogRldInput, Warning, TEXT("OnCameraZoomTriggered: PlayerCharacter is null"));
+        return;
+    }
+
+    if (!PlayerCharacter->CanAcceptZoomInput())
+    {
+        UE_LOG(LogRldInput, Verbose, TEXT("OnCameraZoomTriggered: Zoom input rejected"));
+        return;
+    }
+
+    PlayerCharacter->RequestZoomInput(ZoomValue);
 }
 
 // ----- UI操作の入力 -----
@@ -410,21 +438,108 @@ void ARldPlayerController::OnUIScrollTriggered(const FInputActionValue& Value)
 // ----- ゲーム固有入力変換 -----
 
 /**
- * 軸入力をローグライク用4方向へ変換する
+ * 入力軸をローグライク用4方向へ変換する
  *
  * この変換はゲーム固有仕様であり、Common層には置かない
- * 左スティックやキー入力を主軸優先で4方向へ丸める
+ * 入力はカメラ基準で解釈し、最終的にグリッド4方向へ丸める
  */
-bool ARldPlayerController::TryConvertMoveAxisToGridDir(const FVector2D& Axis, FIntPoint& OutDirection) const
+bool ARldPlayerController::TryConvertMoveAxisToGridDir(
+    const FVector2D& Axis,
+    FIntPoint& OutDirection
+) const
 {
-    // 4方向移動として確定するためのしきい値
-    const float DeadZone = 0.5f;
+    FVector WorldDirection;
+    if (!TryConvertInputAxisToCameraRelativeWorldDir(Axis, WorldDirection))
+    {
+        return false;
+    }
+
+    return TryConvertWorldDirToGridDir(WorldDirection, OutDirection);
+}
+
+/**
+ * 入力軸をカメラ基準のワールド平面方向へ変換する
+ *
+ * W / ↑ / 左スティック↑ は「画面上方向」
+ * D / → は「画面右方向」
+ * を意味するように、ControlRotationのYawを基準に平面ベクトルへ変換する
+ */
+bool ARldPlayerController::TryConvertInputAxisToCameraRelativeWorldDir(
+    const FVector2D& Axis,
+    FVector& OutWorldDirection
+) const
+{
+    OutWorldDirection = FVector::ZeroVector;
+
+    // 入力しきい値
+    const float InputDeadZone = 0.5f;
 
     const float AbsX = FMath::Abs(Axis.X);
     const float AbsY = FMath::Abs(Axis.Y);
 
-    // どちらの軸もしきい値未満なら無効
-    if (AbsX < DeadZone && AbsY < DeadZone)
+    if (AbsX < InputDeadZone && AbsY < InputDeadZone)
+    {
+        return false;
+    }
+
+    // 実際に見えているカメラ向きを基準にする
+    const ARldPlayerCharacter* PlayerCharacter = GetRldPlayerCharacter();
+    if (!PlayerCharacter)
+    {
+        return false;
+    }
+
+    const FVector CameraForward = PlayerCharacter->GetCameraPlanarForward();
+    const FVector CameraRight = PlayerCharacter->GetCameraPlanarRight();
+
+    // 入力をカメラ基準の平面方向へ変換
+    FVector MoveWorldDirection =
+        (CameraForward * Axis.Y) +
+        (CameraRight * Axis.X);
+
+    MoveWorldDirection.Z = 0.0f;
+
+    if (MoveWorldDirection.IsNearlyZero(KINDA_SMALL_NUMBER))
+    {
+        return false;
+    }
+
+    MoveWorldDirection.Normalize();
+    OutWorldDirection = MoveWorldDirection;
+
+    UE_LOG(
+        LogRldInput,
+        Verbose,
+        TEXT("CameraRelativeWorldDir: Axis(X=%f Y=%f) WorldDir(X=%f Y=%f Z=%f)"),
+        Axis.X,
+        Axis.Y,
+        OutWorldDirection.X,
+        OutWorldDirection.Y,
+        OutWorldDirection.Z
+    );
+
+    return true;
+}
+
+/**
+ * ワールド平面方向をグリッド4方向へ変換する
+ *
+ * 現在のグリッド定義は
+ * Grid X = World X
+ * Grid Y = World Y
+ * として扱う
+ */
+bool ARldPlayerController::TryConvertWorldDirToGridDir(
+    const FVector& WorldDirection,
+    FIntPoint& OutGridDirection
+) const
+{
+    OutGridDirection = FIntPoint::ZeroValue;
+
+    const float AbsX = FMath::Abs(WorldDirection.X);
+    const float AbsY = FMath::Abs(WorldDirection.Y);
+
+    if (AbsX < KINDA_SMALL_NUMBER && AbsY < KINDA_SMALL_NUMBER)
     {
         return false;
     }
@@ -432,12 +547,26 @@ bool ARldPlayerController::TryConvertMoveAxisToGridDir(const FVector2D& Axis, FI
     // 主軸優先で4方向へ変換
     if (AbsX >= AbsY)
     {
-        OutDirection = (Axis.X >= 0.0f) ? FIntPoint(1, 0) : FIntPoint(-1, 0);
+        OutGridDirection = (WorldDirection.X >= 0.0f)
+            ? FIntPoint(1, 0)
+            : FIntPoint(-1, 0);
     }
     else
     {
-        OutDirection = (Axis.Y >= 0.0f) ? FIntPoint(0, 1) : FIntPoint(0, -1);
+        OutGridDirection = (WorldDirection.Y >= 0.0f)
+            ? FIntPoint(0, 1)
+            : FIntPoint(0, -1);
     }
+
+    UE_LOG(
+        LogRldInput,
+        Verbose,
+        TEXT("WorldDirToGridDir: WorldDir(X=%f Y=%f) -> GridDir(%d, %d)"),
+        WorldDirection.X,
+        WorldDirection.Y,
+        OutGridDirection.X,
+        OutGridDirection.Y
+    );
 
     return true;
 }
@@ -464,7 +593,20 @@ void ARldPlayerController::ProcessResolvedMoveDirection(
 
     StartMoveRepeat(Direction, InputSourceText, Axis);
 
-    // TODO: TurnManager等へ方向入力を渡す
+    ARldPlayerCharacter* PlayerCharacter = GetRldPlayerCharacter();
+    if (!PlayerCharacter)
+    {
+        UE_LOG(LogRldInput, Warning, TEXT("ProcessResolvedMoveDirection: PlayerCharacter is null"));
+        return;
+    }
+
+    if (!PlayerCharacter->CanAcceptMoveInput())
+    {
+        UE_LOG(LogRldInput, Verbose, TEXT("ProcessResolvedMoveDirection: Move input rejected"));
+        return;
+    }
+
+    PlayerCharacter->RequestMoveDirection(Direction);
 }
 
 // ----- 左スティック専用処理 -----
@@ -566,6 +708,16 @@ void ARldPlayerController::HandleLeftStickMoveTriggered(const FVector2D& Axis)
     );
 }
 
+// ----- Character取得 -----
+
+/**
+ * 現在操作中のRogueLikeDungeon用プレイヤーCharacterを取得する
+ */
+ARldPlayerCharacter* ARldPlayerController::GetRldPlayerCharacter() const
+{
+    return Cast<ARldPlayerCharacter>(GetPawn());
+}
+
 // ----- デバッグ補助 -----
 
 /**
@@ -601,7 +753,7 @@ FString ARldPlayerController::BuildMoveInputSourceDebugText() const
     }
 
     // ----- ゲームパッド十字キー -----
-    
+
     if (IsInputKeyDown(EKeys::Gamepad_DPad_Up))
     {
         Sources.Add(TEXT("ゲームパッド十字キー(↑)"));
@@ -750,7 +902,21 @@ void ARldPlayerController::TickMoveRepeat()
         RepeatingMoveDirection.Y
     );
 
-    // TODO: TurnManager等へ方向入力を渡す
+    ARldPlayerCharacter* PlayerCharacter = GetRldPlayerCharacter();
+    if (!PlayerCharacter)
+    {
+        UE_LOG(LogRldInput, Warning, TEXT("TickMoveRepeat: PlayerCharacter is null"));
+        StopMoveRepeat();
+        return;
+    }
+
+    if (!PlayerCharacter->CanAcceptMoveInput())
+    {
+        UE_LOG(LogRldInput, Verbose, TEXT("TickMoveRepeat: Move input rejected"));
+        return;
+    }
+
+    PlayerCharacter->RequestMoveDirection(RepeatingMoveDirection);
 }
 
 /**
@@ -763,48 +929,50 @@ bool ARldPlayerController::ShouldContinueMoveRepeat() const
         return false;
     }
 
+    FVector2D CurrentAxis = FVector2D::ZeroVector;
+
     // ----- キーボード -----
 
-    if (RepeatingMoveDirection == FIntPoint(0, 1) && IsInputKeyDown(EKeys::W))
+    if (IsInputKeyDown(EKeys::W))
     {
-        return true;
+        CurrentAxis.Y += 1.0f;
     }
 
-    if (RepeatingMoveDirection == FIntPoint(0, -1) && IsInputKeyDown(EKeys::S))
+    if (IsInputKeyDown(EKeys::S))
     {
-        return true;
+        CurrentAxis.Y -= 1.0f;
     }
 
-    if (RepeatingMoveDirection == FIntPoint(-1, 0) && IsInputKeyDown(EKeys::A))
+    if (IsInputKeyDown(EKeys::D))
     {
-        return true;
+        CurrentAxis.X += 1.0f;
     }
 
-    if (RepeatingMoveDirection == FIntPoint(1, 0) && IsInputKeyDown(EKeys::D))
+    if (IsInputKeyDown(EKeys::A))
     {
-        return true;
+        CurrentAxis.X -= 1.0f;
     }
 
     // ----- ゲームパッド十字キー -----
 
-    if (RepeatingMoveDirection == FIntPoint(0, 1) && IsInputKeyDown(EKeys::Gamepad_DPad_Up))
+    if (IsInputKeyDown(EKeys::Gamepad_DPad_Up))
     {
-        return true;
+        CurrentAxis.Y += 1.0f;
     }
 
-    if (RepeatingMoveDirection == FIntPoint(0, -1) && IsInputKeyDown(EKeys::Gamepad_DPad_Down))
+    if (IsInputKeyDown(EKeys::Gamepad_DPad_Down))
     {
-        return true;
+        CurrentAxis.Y -= 1.0f;
     }
 
-    if (RepeatingMoveDirection == FIntPoint(-1, 0) && IsInputKeyDown(EKeys::Gamepad_DPad_Left))
+    if (IsInputKeyDown(EKeys::Gamepad_DPad_Right))
     {
-        return true;
+        CurrentAxis.X += 1.0f;
     }
 
-    if (RepeatingMoveDirection == FIntPoint(1, 0) && IsInputKeyDown(EKeys::Gamepad_DPad_Right))
+    if (IsInputKeyDown(EKeys::Gamepad_DPad_Left))
     {
-        return true;
+        CurrentAxis.X -= 1.0f;
     }
 
     // ----- ゲームパッドLスティック -----
@@ -812,18 +980,20 @@ bool ARldPlayerController::ShouldContinueMoveRepeat() const
     const float LeftStickX = GetInputAnalogKeyState(EKeys::Gamepad_LeftX);
     const float LeftStickY = GetInputAnalogKeyState(EKeys::Gamepad_LeftY);
 
-    const FVector2D LeftStickAxis(LeftStickX, LeftStickY);
-
-    FIntPoint LeftStickDirection;
-    if (TryConvertMoveAxisToGridDir(LeftStickAxis, LeftStickDirection))
+    // アナログ入力があれば、そちらを優先して使う
+    if (!FMath::IsNearlyZero(LeftStickX, KINDA_SMALL_NUMBER) ||
+        !FMath::IsNearlyZero(LeftStickY, KINDA_SMALL_NUMBER))
     {
-        if (LeftStickDirection == RepeatingMoveDirection)
-        {
-            return true;
-        }
+        CurrentAxis = FVector2D(LeftStickX, LeftStickY);
     }
 
-    return false;
+    FIntPoint CurrentDirection;
+    if (!TryConvertMoveAxisToGridDir(CurrentAxis, CurrentDirection))
+    {
+        return false;
+    }
+
+    return CurrentDirection == RepeatingMoveDirection;
 }
 
 // ----- 内部処理 -----

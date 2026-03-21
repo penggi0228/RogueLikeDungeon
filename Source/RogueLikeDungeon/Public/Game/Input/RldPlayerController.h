@@ -15,6 +15,7 @@ class UEnhancedInputLocalPlayerSubsystem;
 class UCmnInputRouter;
 class UCmnInputConfig;
 class UCmnSettingsSubsystem;
+class ARldPlayerCharacter;
 struct FInputRuntimeSettings;
 
 /**
@@ -113,13 +114,37 @@ private:
     // ----- ゲーム固有入力変換 -----
 
     /**
-     * 軸入力を4方向へ変換する
+     * 入力軸をカメラ基準のグリッド4方向へ変換する
      *
      * @param Axis 入力軸
-     * @param OutDirection 変換後の方向
+     * @param OutDirection 変換後のグリッド方向
      * @return 方向確定できた場合はtrueを返す
      */
     bool TryConvertMoveAxisToGridDir(const FVector2D& Axis, FIntPoint& OutDirection) const;
+
+    /**
+     * 入力軸をカメラ基準のワールド平面方向へ変換する
+     *
+     * @param Axis 入力軸
+     * @param OutWorldDirection 変換後のワールド平面方向
+     * @return 有効な方向が得られた場合はtrueを返す
+     */
+    bool TryConvertInputAxisToCameraRelativeWorldDir(
+        const FVector2D& Axis,
+        FVector& OutWorldDirection
+    ) const;
+
+    /**
+     * ワールド平面方向をグリッド4方向へ変換する
+     *
+     * @param WorldDirection ワールド平面方向
+     * @param OutGridDirection 変換後のグリッド方向
+     * @return 方向確定できた場合はtrueを返す
+     */
+    bool TryConvertWorldDirToGridDir(
+        const FVector& WorldDirection,
+        FIntPoint& OutGridDirection
+    ) const;
 
 private:
 
@@ -140,6 +165,17 @@ private:
      * @param Axis 入力軸
      */
     void HandleLeftStickMoveTriggered(const FVector2D& Axis);
+
+private:
+
+    // ----- Character取得 -----
+
+    /**
+     * 現在操作中のRogueLikeDungeon用プレイヤーCharacterを取得する
+     *
+     * @return 取得成功時はARldPlayerCharacter、失敗時はnullptr
+     */
+    ARldPlayerCharacter* GetRldPlayerCharacter() const;
 
 private:
 
