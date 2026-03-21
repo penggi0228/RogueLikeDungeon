@@ -11,7 +11,7 @@ ACmnPlayerCharacterBase::ACmnPlayerCharacterBase()
 }
 
 /**
- * 移動方向入力要求を受け取る
+ * 移動方向入力リクエストを受け取る
  */
 void ACmnPlayerCharacterBase::RequestMoveDirection(const FIntPoint& Direction)
 {
@@ -25,7 +25,7 @@ void ACmnPlayerCharacterBase::RequestMoveDirection(const FIntPoint& Direction)
 }
 
 /**
- * 向き変更入力要求を受け取る
+ * 向き変更入力リクエストを受け取る
  */
 void ACmnPlayerCharacterBase::RequestFaceDirection(const FIntPoint& Direction)
 {
@@ -39,7 +39,7 @@ void ACmnPlayerCharacterBase::RequestFaceDirection(const FIntPoint& Direction)
 }
 
 /**
- * カメラ視点入力要求を受け取る
+ * カメラ視点入力リクエストを受け取る
  */
 void ACmnPlayerCharacterBase::RequestLookInput(const FVector2D& Axis)
 {
@@ -53,7 +53,7 @@ void ACmnPlayerCharacterBase::RequestLookInput(const FVector2D& Axis)
 }
 
 /**
- * カメラズーム入力要求を受け取る
+ * カメラズーム入力リクエストを受け取る
  */
 void ACmnPlayerCharacterBase::RequestZoomInput(float Value)
 {
