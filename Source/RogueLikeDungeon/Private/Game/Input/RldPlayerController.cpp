@@ -6,7 +6,6 @@
 #include "EnhancedInputSubsystems.h"
 #include "Engine/GameInstance.h"
 #include "InputCoreTypes.h"
-#include "Math/RotationMatrix.h"
 
 #include "Common/Input/CmnInputRouter.h"
 #include "Common/Input/CmnInputConfig.h"

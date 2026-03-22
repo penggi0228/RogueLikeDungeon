@@ -8,13 +8,14 @@
 
 class USpringArmComponent;
 class UCameraComponent;
+class ARldGridManager;
 
 /**
  * RogueLikeDungeon用プレイヤーCharacter
  *
  * 共通グリッド移動Characterのベースクラスを継承し、
  * ゲーム固有の移動処理とカメラ処理を実装する
- * 
+ *
  * 調整系の値はBlueprint派生クラス側で変更しやすいように
  * UPROPERTYで公開している
  */
@@ -61,12 +62,12 @@ public:
 
 public:
 
-    // ----- カメラ方向処理 -----
+    // ----- カメラ方向取得 -----
 
     /**
      * カメラの平面前方向を取得する
      *
-     * Z成分は除外し、XY平面へ射影した正規化ベクトルを返す
+     * Z成分を除外した正規化ベクトルを返す
      *
      * @return カメラの平面前方向
      */
@@ -75,11 +76,23 @@ public:
     /**
      * カメラの平面右方向を取得する
      *
-     * Z成分は除外し、XY平面へ射影した正規化ベクトルを返す
+     * Z成分を除外した正規化ベクトルを返す
      *
      * @return カメラの平面右方向
      */
     FVector GetCameraPlanarRight() const;
+
+private:
+
+    // ----- グリッド管理取得 -----
+
+    /**
+     * レベル上のグリッド管理Actorを取得する
+     *
+     * 現段階ではレベル上に1個だけ配置する前提で検索する
+     * 将来的にはGameModeや生成処理から明示的に受け取る形へ拡張可能
+     */
+    void ResolveGridManager();
 
 private:
 
@@ -88,10 +101,12 @@ private:
     /**
      * 移動入力を処理する
      *
-     * 現段階ではグリッド座標を直接更新し、
-     * 更新後の座標をワールド座標へ反映する
+     * 現段階では
+     * ・次グリッド座標を計算
+     * ・グリッド管理へ通行可否を問い合わせ
+     * ・通行可能なら座標を更新
      *
-     * 将来的にはTurnManagerやGridManagerへ処理を委譲する想定
+     * 将来的にはTurnManagerや占有判定もここから委譲する想定
      *
      * @param Direction 確定した移動方向
      */
@@ -111,15 +126,23 @@ private:
 
 private:
 
+    // ----- グリッド管理参照 -----
+
+    /** レベル上のグリッド管理Actor参照 */
+    UPROPERTY(Transient)
+    TObjectPtr<ARldGridManager> gridManager = nullptr;
+
+private:
+
     // ----- カメラコンポーネント -----
 
     /** カメラ用スプリングアーム */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Rld|Camera", meta = (AllowPrivateAccess = "true"))
-    TObjectPtr<USpringArmComponent> SpringArm = nullptr;
+    TObjectPtr<USpringArmComponent> springArm = nullptr;
 
     /** プレイヤーカメラ */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Rld|Camera", meta = (AllowPrivateAccess = "true"))
-    TObjectPtr<UCameraComponent> PlayerCamera = nullptr;
+    TObjectPtr<UCameraComponent> playerCamera = nullptr;
 
 private:
 
@@ -127,19 +150,19 @@ private:
 
     /** カメラ水平回転速度 */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Rld|Camera|Rotate", meta = (AllowPrivateAccess = "true"))
-    float CameraYawSpeed = 2.0f;
+    float cameraYawSpeed = 2.0f;
 
     /** カメラ垂直回転速度 */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Rld|Camera|Rotate", meta = (AllowPrivateAccess = "true"))
-    float CameraPitchSpeed = 2.0f;
+    float cameraPitchSpeed = 2.0f;
 
     /** カメラ最小ピッチ */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Rld|Camera|Rotate", meta = (AllowPrivateAccess = "true"))
-    float MinCameraPitch = -80.0f;
+    float minCameraPitch = -80.0f;
 
     /** カメラ最大ピッチ */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Rld|Camera|Rotate", meta = (AllowPrivateAccess = "true"))
-    float MaxCameraPitch = -20.0f;
+    float maxCameraPitch = -20.0f;
 
 private:
 
@@ -147,31 +170,31 @@ private:
 
     /** ズーム速度 */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Rld|Camera|Zoom", meta = (AllowPrivateAccess = "true"))
-    float ZoomSpeed = 100.0f;
+    float zoomSpeed = 100.0f;
 
     /** 最小アーム長 */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Rld|Camera|Zoom", meta = (AllowPrivateAccess = "true"))
-    float MinTargetArmLength = 300.0f;
+    float minTargetArmLength = 300.0f;
 
     /** 最大アーム長 */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Rld|Camera|Zoom", meta = (AllowPrivateAccess = "true"))
-    float MaxTargetArmLength = 1200.0f;
+    float maxTargetArmLength = 1200.0f;
 
 private:
 
-    // ----- カメラ初期設定 -----
+    // ----- カメラ初期設定値 -----
 
     /** 初期アーム長 */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Rld|Camera|Initial", meta = (AllowPrivateAccess = "true"))
-    float InitialTargetArmLength = 800.0f;
+    float initialTargetArmLength = 800.0f;
 
     /** 初期ピッチ */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Rld|Camera|Initial", meta = (AllowPrivateAccess = "true"))
-    float InitialCameraPitch = -60.0f;
+    float initialCameraPitch = -60.0f;
 
     /** 初期ヨー */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Rld|Camera|Initial", meta = (AllowPrivateAccess = "true"))
-    float InitialCameraYaw = 0.0f;
+    float initialCameraYaw = 0.0f;
 
     /** スプリングアームの衝突判定を使うか */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Rld|Camera|Initial", meta = (AllowPrivateAccess = "true"))
