@@ -1,4 +1,4 @@
-// CmnPlayerCharacterBase.h
+// CmnPlayerCharacterBase.hPlayerCharacter
 
 #pragma once
 
@@ -7,13 +7,8 @@
 #include "CmnPlayerCharacterBase.generated.h"
 
 /**
- * 共通プレイヤーCharacterのベースクラス
- *
- * PlayerControllerなどの入力処理から受け取ったリクエストを、
- * 各ゲーム固有Characterへ橋渡しするための共通窓口を提供する
- *
- * このクラス自体にはゲーム固有の移動ロジックは持たせず、
- * 実際の処理は派生クラス側で実装する
+ * プレイヤーキャラクターの共通ベースクラス
+ * 入力を受け取り、派生クラスへ処理を委譲する
  */
 UCLASS(Abstract)
 class ROGUELIKEDUNGEON_API ACmnPlayerCharacterBase : public ACharacter
@@ -22,38 +17,39 @@ class ROGUELIKEDUNGEON_API ACmnPlayerCharacterBase : public ACharacter
 
 public:
 
+    /** プレイヤーキャラクターを初期化する */
     ACmnPlayerCharacterBase();
 
 public:
 
     /**
-     * 移動方向入力要求を受け取る
+     * 移動入力を受け取る
      *
-     * @param Direction 確定した移動方向
+     * @param Direction 移動方向
      */
     UFUNCTION(BlueprintCallable, Category = "Cmn|Input")
     virtual void RequestMoveDirection(const FIntPoint& Direction);
 
     /**
-     * 向き変更入力要求を受け取る
+     * 向き変更入力を受け取る
      *
-     * @param Direction 確定した方向
+     * @param Direction プレイヤーキャラクターが正面を向く方向
      */
     UFUNCTION(BlueprintCallable, Category = "Cmn|Input")
     virtual void RequestFaceDirection(const FIntPoint& Direction);
 
     /**
-     * カメラ視点入力要求を受け取る
+     * カメラ視点入力を受け取る
      *
-     * @param Axis 視点入力軸
+     * @param Axis カメラ視点入力値
      */
     UFUNCTION(BlueprintCallable, Category = "Cmn|Input")
     virtual void RequestLookInput(const FVector2D& Axis);
 
     /**
-     * カメラズーム入力要求を受け取る
+     * カメラズーム入力を受け取る
      *
-     * @param Value ズーム入力値
+     * @param Value カメラズーム入力値
      */
     UFUNCTION(BlueprintCallable, Category = "Cmn|Input")
     virtual void RequestZoomInput(float Value);
@@ -75,7 +71,7 @@ public:
     virtual bool CanAcceptFaceInput() const;
 
     /**
-     * 視点入力を受け付け可能か判定する
+     * カメラ視点入力を受け付け可能か判定する
      *
      * @return 受付可能ならtrue
      */
@@ -83,7 +79,7 @@ public:
     virtual bool CanAcceptLookInput() const;
 
     /**
-     * ズーム入力を受け付け可能か判定する
+     * カメラズーム入力を受け付け可能か判定する
      *
      * @return 受付可能ならtrue
      */

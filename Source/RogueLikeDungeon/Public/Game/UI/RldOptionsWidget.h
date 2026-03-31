@@ -11,7 +11,7 @@ class UButton;
 class UCmnSettingsSubsystem;
 
 /**
- * ゲーム内オプション画面のロジック部分
+ * ゲーム内オプション画面のロジックを行うWidget
  */
 UCLASS()
 class ROGUELIKEDUNGEON_API URldOptionsWidget : public UUserWidget
@@ -27,60 +27,60 @@ protected:
 
 private:
 
-    // ===== BindWidget（Blueprint側に必ず同名で配置すること）=====
+    // ----- BindWidget -----
 
-    /* カメラ左右反転チェック */
+    // カメラ左右反転チェックボックス
     UPROPERTY(meta = (BindWidgetOptional))
     TObjectPtr<UCheckBox> CheckBoxInvertX;
 
-    /* カメラ上下反転チェック */
+    // カメラ上下反転チェックボックス
     UPROPERTY(meta = (BindWidgetOptional))
     TObjectPtr<UCheckBox> CheckBoxInvertY;
 
-    /* 適用ボタン */
+    // 適用ボタン
     UPROPERTY(meta = (BindWidgetOptional))
     TObjectPtr<UButton> ButtonApply;
 
-    /* キャンセルボタン */
+    // キャンセルボタン
     UPROPERTY(meta = (BindWidgetOptional))
     TObjectPtr<UButton> ButtonCancel;
 
-    /* 閉じるボタン */
+    // 閉じるボタン
     UPROPERTY(meta = (BindWidgetOptional))
     TObjectPtr<UButton> ButtonClose;
 
 private:
 
-    // ===== Event Handlers =====
+    // ----- Event Handlers -----
 
-    /* カメラ左右反転チェック ON/OFFイベント */
+    /** カメラ左右反転チェック変更時の処理を行う */
     UFUNCTION()
     void OnInvertXChanged(bool bIsChecked);
 
-    /* カメラ上下反転チェック ON/OFFイベント */
+    /** カメラ上下反転チェック変更時の処理を行う */
     UFUNCTION()
     void OnInvertYChanged(bool bIsChecked);
 
-    /* 適用ボタンクリックイベント */
+    /** 適用ボタンクリック時の処理を行う */
     UFUNCTION()
     void OnApplyClicked();
 
-    /* キャンセルボタンクリックイベント */
+    /** キャンセルボタンクリック時の処理を行う */
     UFUNCTION()
     void OnCancelClicked();
 
-    /* 閉じるボタンクリックイベント */
+    /** 閉じるボタンクリック時の処理を行う */
     UFUNCTION()
     void OnCloseClicked();
 
 private:
 
-    /* Subsystem取得 */
+    /** SettingsSubsystemを取得する */
     UCmnSettingsSubsystem* GetSettingsSubsystem() const;
 
-    /* 現在の設定をUIへ反映 */
+    /** 現在の設定をUIへ反映する */
     void RefreshUIFromSettings();
 
-    /* 適用ボタンの状態更新 */
+    /** 適用ボタンの状態を更新する */
     void UpdateApplyButtonState();
 };

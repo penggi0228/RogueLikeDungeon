@@ -19,11 +19,8 @@ class ARldPlayerCharacter;
 struct FInputRuntimeSettings;
 
 /**
- * ゲーム固有PlayerController
- *
- * EnhancedInputのBindのみ担当
- * 入力解釈はゲーム固有のPlayerController側で行う
- * 入力設定はUCmnSettingsSubsystemから通知で受け取る
+ * RogueLikeDungeon用PlayerController
+ * 入力処理と入力変換を行う
  */
 UCLASS()
 class ROGUELIKEDUNGEON_API ARldPlayerController : public APlayerController
@@ -32,6 +29,7 @@ class ROGUELIKEDUNGEON_API ARldPlayerController : public APlayerController
 
 public:
 
+    /** PlayerControllerを初期化する */
     ARldPlayerController();
 
     // ----- AActor -----
@@ -46,16 +44,11 @@ public:
 
 public:
 
-    /**
-     * 共通入力モードを切り替える
-     * IMC適用およびInputMode制御はRouterへ委譲する
-     */
+    /** 共通入力モードを切り替える */
     UFUNCTION(BlueprintCallable, Category = "Rld|Input")
     void SetCommonInputMode(ECmnInputMode Mode);
 
-    /**
-     * Routerを取得する(UI側参照用)
-     */
+    /** 入力ルーターを取得する */
     UFUNCTION(BlueprintCallable, Category = "Rld|Input")
     UCmnInputRouter* GetInputRouter() const;
 
@@ -63,50 +56,33 @@ private:
 
     // ----- 設定通知 -----
 
-    /**
-     * Subsystemからの入力設定変更通知を受け取る
-     * Controller内のローカルキャッシュを更新する
-     */
+    /** 入力設定変更通知を受け取る */
     void HandleInputSettingsChanged(const FInputRuntimeSettings& NewSettings);
 
 private:
 
     // ----- ゲーム操作の入力 -----
 
-    /**
-     * 移動入力開始時の処理
-     * 1入力=1ターンの確定処理を行う
-     */
+    /** 移動入力開始時の処理を行う */
     void OnMoveStarted(const FInputActionValue& Value);
 
-    /**
-     * 移動入力の生値ログ出力用
-     * デバッグ確認のためTriggeredでも受け取る
-     */
+    /** 移動入力の生値ログを出力する */
     void OnMoveTriggered(const FInputActionValue& Value);
 
-    /**
-     * カメラ視点入力処理
-     */
+    /** カメラ視点入力を処理する */
     void OnCameraLookTriggered(const FInputActionValue& Value);
 
-    /**
-     * カメラズーム入力処理
-     */
+    /** カメラズーム入力を処理する */
     void OnCameraZoomTriggered(const FInputActionValue& Value);
 
 private:
 
     // ----- UI操作の入力 -----
 
-    /**
-     * UI方向入力処理
-     */
+    /** UI方向入力を処理する */
     void OnUIDirectionTriggered(const FInputActionValue& Value);
 
-    /**
-     * UIスクロール入力処理
-     */
+    /** UIスクロール入力を処理する */
     void OnUIScrollTriggered(const FInputActionValue& Value);
 
 private:
@@ -118,7 +94,7 @@ private:
      *
      * @param Axis 入力軸
      * @param OutDirection 変換後のグリッド方向
-     * @return 方向確定できた場合はtrueを返す
+     * @return 方向確定できた場合はtrue
      */
     bool TryConvertMoveAxisToGridDir(const FVector2D& Axis, FIntPoint& OutDirection) const;
 
@@ -127,7 +103,7 @@ private:
      *
      * @param Axis 入力軸
      * @param OutWorldDirection 変換後のワールド平面方向
-     * @return 有効な方向が得られた場合はtrueを返す
+     * @return 有効な方向が得られた場合はtrue
      */
     bool TryConvertInputAxisToCameraRelativeWorldDir(
         const FVector2D& Axis,
@@ -139,7 +115,7 @@ private:
      *
      * @param WorldDirection ワールド平面方向
      * @param OutGridDirection 変換後のグリッド方向
-     * @return 方向確定できた場合はtrueを返す
+     * @return 方向確定できた場合はtrue
      */
     bool TryConvertWorldDirToGridDir(
         const FVector& WorldDirection,
@@ -154,13 +130,12 @@ private:
      * 左スティック入力かどうかを判定する
      *
      * @param Axis 入力軸
-     * @return 左スティック入力とみなせる場合はtrueを返す
+     * @return 左スティック入力とみなせる場合はtrue
      */
     bool IsLikelyLeftStickInput(const FVector2D& Axis) const;
 
     /**
-     * 左スティックの1入力=1ターン確定処理
-     * Triggeredから呼び出し、しきい値を超えた瞬間のみ移動を確定する
+     * 左スティックの移動入力を処理する
      *
      * @param Axis 入力軸
      */
@@ -168,12 +143,12 @@ private:
 
 private:
 
-    // ----- Character取得 -----
+    // ----- キャラクター取得 -----
 
     /**
-     * 現在操作中のRogueLikeDungeon用プレイヤーCharacterを取得する
+     * 現在操作中のプレイヤーキャラクターを取得する
      *
-     * @return 取得成功時はARldPlayerCharacter、失敗時はnullptr
+     * @return プレイヤーキャラクター
      */
     ARldPlayerCharacter* GetRldPlayerCharacter() const;
 
@@ -181,25 +156,22 @@ private:
 
     // ----- 左スティックの状態 -----
 
-    /** 左スティック入力が確定済みならtrue */
+    // 左スティック入力確定済みフラグ
     bool bLeftStickMoveConsumed = false;
 
 private:
 
     // ----- デバッグ補助 -----
 
-    /**
-     * 現在の移動入力元をデバッグ文字列として取得する
-     * キーボード、十字キー、左スティックの状態を見て推定する
-     */
+    /** 現在の移動入力元をデバッグ文字列で取得する */
     FString BuildMoveInputSourceDebugText() const;
-    
+
 private:
 
     /**
      * 確定した移動方向を処理する
      *
-     * @param Direction 確定した移動方向
+     * @param Direction 移動方向
      * @param InputSourceText デバッグ表示用の入力元文字列
      * @param Axis デバッグ表示用の入力軸
      */
@@ -216,7 +188,7 @@ private:
     /**
      * 押しっぱなし移動のリピートを開始する
      *
-     * @param Direction 確定した移動方向
+     * @param Direction 移動方向
      * @param InputSourceText デバッグ表示用の入力元文字列
      * @param Axis デバッグ表示用の入力軸
      */
@@ -226,80 +198,69 @@ private:
         const FVector2D& Axis
     );
 
-    /**
-     * 押しっぱなし移動のリピートを停止する
-     */
+    /** 押しっぱなし移動のリピートを停止する */
     void StopMoveRepeat();
 
-    /**
-     * 押しっぱなし移動の初回遅延後に呼ばれる
-     */
+    /** 押しっぱなし移動の初回遅延処理を行う */
     void BeginMoveRepeat();
 
-    /**
-     * 押しっぱなし移動の定期実行
-     */
+    /** 押しっぱなし移動の定期実行を行う */
     void TickMoveRepeat();
 
-    /**
-     * 現在の入力状態から、押しっぱなし移動を継続すべきか判定する
-     */
+    /** 押しっぱなし移動を継続すべきか判定する */
     bool ShouldContinueMoveRepeat() const;
 
 private:
 
     // ----- 移動リピート状態 -----
 
-    /** 初回遅延Timer */
+    // 初回遅延Timer
     FTimerHandle MoveRepeatStartTimerHandle;
 
-    /** 継続リピートTimer */
+    // 継続リピートTimer
     FTimerHandle MoveRepeatTickTimerHandle;
 
-    /** 現在のリピート方向 */
+    // 現在のリピート方向
     FIntPoint RepeatingMoveDirection = FIntPoint::ZeroValue;
 
-    /** 現在のリピート入力元 */
+    // 現在のリピート入力元
     FString RepeatingMoveInputSourceText;
 
-    /** 現在のリピート入力軸 */
+    // 現在のリピート入力軸
     FVector2D RepeatingMoveAxis = FVector2D::ZeroVector;
 
-    /** 押しっぱなし移動の初回遅延秒数 */
+    // 押しっぱなし移動の初回遅延秒数
     float MoveRepeatInitialDelay = 0.25f;
 
-    /** 押しっぱなし移動の継続間隔秒数 */
+    // 押しっぱなし移動の継続間隔秒数
     float MoveRepeatInterval = 0.10f;
 
-    /** 押しっぱなし移動中ならtrue */
+    // 押しっぱなし移動中フラグ
     bool bMoveRepeatActive = false;
 
 private:
 
     // ----- 内部処理 -----
 
-    /**
-     * 入力設定のロード&ルータへ適用
-     * SetupInputComponent前にIA参照を確定させるために使用する
-     */
+    /** 入力設定をロードして入力ルーターへ適用する */
     void LoadAndApplyInputConfig();
 
-    /**
-     * EnhancedInputComponentへ差し替える
-     * InputComponentClass依存を排除するための安全措置
-     */
+    /** EnhancedInputComponentへ差し替える */
     void EnsureEnhancedInputComponent();
 
 private:
 
     // ----- 入力設定DataAsset -----
 
+    // 入力設定DataAsset参照(エディタ設定用)
     UPROPERTY(EditDefaultsOnly, Category = "Rld|Input")
     TSoftObjectPtr<UCmnInputConfig> InputConfigAsset;
 
+    // 同期ロード済み入力設定キャッシュ
     UPROPERTY(Transient)
     TObjectPtr<UCmnInputConfig> LoadedInputConfig = nullptr;
 
+    // 入力処理・IMC制御を行うルーター
     UPROPERTY(VisibleAnywhere, Category = "Rld|Input")
     TObjectPtr<UCmnInputRouter> InputRouter = nullptr;
 
@@ -310,6 +271,6 @@ private:
     bool bInvertCameraX = false;
     bool bInvertCameraY = false;
 
-    /** 設定Subsystem参照(GameInstance管理のためUPROPERTY不要) */
+    // 設定Subsystem参照
     UCmnSettingsSubsystem* SettingsSubsystem = nullptr;
 };

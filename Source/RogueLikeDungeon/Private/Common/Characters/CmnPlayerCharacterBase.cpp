@@ -4,14 +4,14 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogCmnPlayerCharacterBase, Log, All);
 
+/** プレイヤーキャラクターを初期化する */
 ACmnPlayerCharacterBase::ACmnPlayerCharacterBase()
 {
-    // 共通基底ではTick不要
     PrimaryActorTick.bCanEverTick = false;
 }
 
 /**
- * 移動方向入力リクエストを受け取る
+ * 移動入力を受け取る
  */
 void ACmnPlayerCharacterBase::RequestMoveDirection(const FIntPoint& Direction)
 {
@@ -25,7 +25,7 @@ void ACmnPlayerCharacterBase::RequestMoveDirection(const FIntPoint& Direction)
 }
 
 /**
- * 向き変更入力リクエストを受け取る
+ * 向き変更入力を受け取る
  */
 void ACmnPlayerCharacterBase::RequestFaceDirection(const FIntPoint& Direction)
 {
@@ -39,7 +39,7 @@ void ACmnPlayerCharacterBase::RequestFaceDirection(const FIntPoint& Direction)
 }
 
 /**
- * カメラ視点入力リクエストを受け取る
+ * カメラ視点入力を受け取る
  */
 void ACmnPlayerCharacterBase::RequestLookInput(const FVector2D& Axis)
 {
@@ -53,7 +53,7 @@ void ACmnPlayerCharacterBase::RequestLookInput(const FVector2D& Axis)
 }
 
 /**
- * カメラズーム入力リクエストを受け取る
+ * カメラズーム入力を受け取る
  */
 void ACmnPlayerCharacterBase::RequestZoomInput(float Value)
 {
@@ -82,7 +82,7 @@ bool ACmnPlayerCharacterBase::CanAcceptFaceInput() const
 }
 
 /**
- * 視点入力を受け付け可能か判定する
+ * カメラ視点入力を受け付け可能か判定する
  */
 bool ACmnPlayerCharacterBase::CanAcceptLookInput() const
 {
@@ -90,7 +90,7 @@ bool ACmnPlayerCharacterBase::CanAcceptLookInput() const
 }
 
 /**
- * ズーム入力を受け付け可能か判定する
+ * カメラズーム入力を受け付け可能か判定する
  */
 bool ACmnPlayerCharacterBase::CanAcceptZoomInput() const
 {

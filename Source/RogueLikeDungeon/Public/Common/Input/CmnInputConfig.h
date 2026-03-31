@@ -11,11 +11,7 @@ class UInputAction;
 
 /**
  * 共通入力設定用DataAsset
- *
- * ・IMC/IAの参照をまとめて管理
- * ・UIリピートやデッドゾーンなどの入力パラメータを保持
- *
- * ※ロジックは持たず、入力設定データのみを保持する
+ * 入力アセット参照と入力設定値を保持する
  */
 UCLASS(BlueprintType)
 class ROGUELIKEDUNGEON_API UCmnInputConfig : public UDataAsset
@@ -23,43 +19,45 @@ class ROGUELIKEDUNGEON_API UCmnInputConfig : public UDataAsset
     GENERATED_BODY()
 
 public:
-    /** ゲーム用IMC */
+
+    // ゲーム用IMC
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Common|Input|IMC")
     TObjectPtr<UInputMappingContext> IMC_Game = nullptr;
 
-    /** UI用IMC */
+    // UI用IMC
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Common|Input|IMC")
     TObjectPtr<UInputMappingContext> IMC_UI = nullptr;
 
-    /** ゲーム移動用Axis2D */
+    // ゲーム移動用InputAction
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Common|Input|IA")
     TObjectPtr<UInputAction> IA_Move = nullptr;
 
-    /** カメラ操作:視点回転(Axis2D) */
+    // カメラ視点操作用InputAction
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Common|Input|IA")
     TObjectPtr<UInputAction> IA_CameraLook = nullptr;
 
-    /** カメラ操作:ズーム(Axis1D) */
+    // カメラズーム操作用InputAction
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Common|Input|IA")
     TObjectPtr<UInputAction> IA_CameraZoom = nullptr;
 
-    /** UI方向入力用Axis2D */
+    // UI方向入力用InputAction
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Common|Input|IA")
     TObjectPtr<UInputAction> IA_UI_Direction = nullptr;
 
-    /** UIスクロール用Axis1D(ホイール/右スティックY軸など) */
+    // UIスクロール用InputAction
+    // マウスホイールや右スティックY軸入力を受け取る
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Common|Input|IA")
     TObjectPtr<UInputAction> IA_UI_Scroll = nullptr;
 
-    /** UIリピート初回遅延 */
+    // UIリピートの初回遅延時間
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Common|Input|UI")
     float UIRepeatDelay = 0.25f;
 
-    /** UIリピート間隔 */
+    // UIリピートの間隔
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Common|Input|UI")
     float UIRepeatInterval = 0.12f;
 
-    /** スティックデッドゾーン */
+    // スティック入力のデッドゾーン
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Common|Input|Axis")
     float DeadZone = 0.50f;
 };
