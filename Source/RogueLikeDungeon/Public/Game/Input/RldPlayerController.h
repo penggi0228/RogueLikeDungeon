@@ -69,6 +69,9 @@ private:
     /** 移動入力の生値ログを出力する */
     void OnMoveTriggered(const FInputActionValue& Value);
 
+    /** 待機入力を処理する */
+    void OnWaitStarted(const FInputActionValue& Value);
+
     /** カメラ視点入力を処理する */
     void OnCameraLookTriggered(const FInputActionValue& Value);
 

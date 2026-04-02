@@ -134,6 +134,12 @@ void ARldPlayerCharacter::RequestZoomInput(float Value)
     );
 }
 
+/** 待機行動を実行する */
+void ARldPlayerCharacter::RequestWaitAction()
+{
+    HandleWaitRequest();
+}
+
 /** カメラの平面前方向を取得する */
 FVector ARldPlayerCharacter::GetCameraPlanarForward() const
 {
@@ -394,6 +400,36 @@ void ARldPlayerCharacter::HandleMoveRequest(const FIntPoint& Direction)
         LogRldPlayerCharacter,
         Log,
         TEXT("HandleMoveRequest: ターン進行完了 現在ターン数=%d"),
+        newTurnIndex
+    );
+}
+
+/** 待機行動を処理する */
+void ARldPlayerCharacter::HandleWaitRequest()
+{
+    UE_LOG(
+        LogRldPlayerCharacter,
+        Log,
+        TEXT("HandleWaitRequest: 待機行動を実行します")
+    );
+
+    // TurnManager未取得時はターン進行しない
+    if (!turnManager)
+    {
+        UE_LOG(
+            LogRldPlayerCharacter,
+            Warning,
+            TEXT("HandleWaitRequest: TurnManager未取得のためターン進行を行いません")
+        );
+        return;
+    }
+
+    const int32 newTurnIndex = turnManager->AdvanceTurn();
+
+    UE_LOG(
+        LogRldPlayerCharacter,
+        Log,
+        TEXT("HandleWaitRequest: 待機によりターンを進めました 現在ターン数=%d"),
         newTurnIndex
     );
 }

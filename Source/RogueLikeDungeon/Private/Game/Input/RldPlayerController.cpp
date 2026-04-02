@@ -108,47 +108,58 @@ void ARldPlayerController::SetupInputComponent()
     // EnhancedInputComponentまたは入力ルーター未取得時はBindしない
     if (!ensure(EIC && InputRouter))
     {
-        UE_LOG(LogRldInput, Error, TEXT("SetupInputComponent failed: EIC or InputRouter is null"));
+        UE_LOG(LogRldInput, Error, TEXT("SetupInputComponent: EnhancedInputComponentまたはInputRouterがnull"));
         return;
     }
 
-    UE_LOG(LogRldInput, Log, TEXT("SetupInputComponent: Begin Bind"));
+    UE_LOG(LogRldInput, Log, TEXT("SetupInputComponent: 入力Bind開始"));
 
     // ----- ゲーム操作 -----
 
     // 移動InputAction取得時はBind
     if (InputRouter->IA_Move)
     {
-        UE_LOG(LogRldInput, Log, TEXT("Bind IA_Move"));
+        UE_LOG(LogRldInput, Log, TEXT("SetupInputComponent: IA_MoveをBindします"));
 
         EIC->BindAction(InputRouter->IA_Move, ETriggerEvent::Started, this, &ARldPlayerController::OnMoveStarted);
         EIC->BindAction(InputRouter->IA_Move, ETriggerEvent::Triggered, this, &ARldPlayerController::OnMoveTriggered);
     }
     else
     {
-        UE_LOG(LogRldInput, Warning, TEXT("IA_Move is null"));
+        UE_LOG(LogRldInput, Warning, TEXT("SetupInputComponent: IA_Moveがnull"));
+    }
+
+    // 待機InputAction取得時はBind
+    if (LoadedInputConfig && LoadedInputConfig->IA_Wait)
+    {
+        UE_LOG(LogRldInput, Log, TEXT("SetupInputComponent: IA_WaitをBindします"));
+        EIC->BindAction(LoadedInputConfig->IA_Wait, ETriggerEvent::Started, this, &ARldPlayerController::OnWaitStarted);
+    }
+    else
+    {
+        UE_LOG(LogRldInput, Warning, TEXT("SetupInputComponent: IA_Waitがnull"));
     }
 
     // カメラ視点InputAction取得時はBind
     if (InputRouter->IA_CameraLook)
     {
-        UE_LOG(LogRldInput, Log, TEXT("Bind IA_CameraLook"));
+        UE_LOG(LogRldInput, Log, TEXT("SetupInputComponent: IA_CameraLookをBindします"));
         EIC->BindAction(InputRouter->IA_CameraLook, ETriggerEvent::Triggered, this, &ARldPlayerController::OnCameraLookTriggered);
     }
     else
     {
-        UE_LOG(LogRldInput, Warning, TEXT("IA_CameraLook is null"));
+        UE_LOG(LogRldInput, Warning, TEXT("SetupInputComponent: IA_CameraLookがnull"));
     }
 
     // カメラズームInputAction取得時はBind
     if (InputRouter->IA_CameraZoom)
     {
-        UE_LOG(LogRldInput, Log, TEXT("Bind IA_CameraZoom"));
+        UE_LOG(LogRldInput, Log, TEXT("SetupInputComponent: IA_CameraZoomをBindします"));
         EIC->BindAction(InputRouter->IA_CameraZoom, ETriggerEvent::Triggered, this, &ARldPlayerController::OnCameraZoomTriggered);
     }
     else
     {
-        UE_LOG(LogRldInput, Warning, TEXT("IA_CameraZoom is null"));
+        UE_LOG(LogRldInput, Warning, TEXT("SetupInputComponent: IA_CameraZoomがnull"));
     }
 
     // ----- UI操作 -----
@@ -156,23 +167,23 @@ void ARldPlayerController::SetupInputComponent()
     // UI方向入力InputAction取得時はBind
     if (InputRouter->IA_UI_Direction)
     {
-        UE_LOG(LogRldInput, Log, TEXT("Bind IA_UI_Direction"));
+        UE_LOG(LogRldInput, Log, TEXT("SetupInputComponent: IA_UI_DirectionをBindします"));
         EIC->BindAction(InputRouter->IA_UI_Direction, ETriggerEvent::Triggered, this, &ARldPlayerController::OnUIDirectionTriggered);
     }
     else
     {
-        UE_LOG(LogRldInput, Warning, TEXT("IA_UI_Direction is null"));
+        UE_LOG(LogRldInput, Warning, TEXT("SetupInputComponent: IA_UI_Directionがnull"));
     }
 
     // UIスクロールInputAction取得時はBind
     if (InputRouter->IA_UI_Scroll)
     {
-        UE_LOG(LogRldInput, Log, TEXT("Bind IA_UI_Scroll"));
+        UE_LOG(LogRldInput, Log, TEXT("SetupInputComponent: IA_UI_ScrollをBindします"));
         EIC->BindAction(InputRouter->IA_UI_Scroll, ETriggerEvent::Triggered, this, &ARldPlayerController::OnUIScrollTriggered);
     }
     else
     {
-        UE_LOG(LogRldInput, Warning, TEXT("IA_UI_Scroll is null"));
+        UE_LOG(LogRldInput, Warning, TEXT("SetupInputComponent: IA_UI_Scrollがnull"));
     }
 }
 
@@ -204,7 +215,7 @@ void ARldPlayerController::HandleInputSettingsChanged(const FInputRuntimeSetting
     UE_LOG(
         LogRldInput,
         Log,
-        TEXT("SettingsChanged: InvertX=%d InvertY=%d"),
+        TEXT("HandleInputSettingsChanged: 左右反転=%d 上下反転=%d"),
         bInvertCameraX ? 1 : 0,
         bInvertCameraY ? 1 : 0
     );
@@ -218,7 +229,7 @@ void ARldPlayerController::OnMoveStarted(const FInputActionValue& Value)
     // ゲームモード以外では移動処理しない
     if (!InputRouter || !InputRouter->IsGameMode())
     {
-        UE_LOG(LogRldInput, Verbose, TEXT("OnMoveStarted skipped: not game mode"));
+        UE_LOG(LogRldInput, Verbose, TEXT("OnMoveStarted: ゲームモード以外のため処理しない"));
         return;
     }
 
@@ -235,7 +246,7 @@ void ARldPlayerController::OnMoveStarted(const FInputActionValue& Value)
     UE_LOG(
         LogRldInput,
         Log,
-        TEXT("Move Started: Source=%s RawAxis(X=%f Y=%f)"),
+        TEXT("OnMoveStarted: 入力元=%s 生入力=(%f,%f)"),
         *InputSourceText,
         Axis.X,
         Axis.Y
@@ -249,7 +260,7 @@ void ARldPlayerController::OnMoveStarted(const FInputActionValue& Value)
         UE_LOG(
             LogRldInput,
             Warning,
-            TEXT("Move direction conversion failed: Source=%s RawAxis(X=%f Y=%f)"),
+            TEXT("OnMoveStarted: 方向変換に失敗しました 入力元=%s 生入力=(%f,%f)"),
             *InputSourceText,
             Axis.X,
             Axis.Y
@@ -269,7 +280,7 @@ void ARldPlayerController::OnMoveTriggered(const FInputActionValue& Value)
     UE_LOG(
         LogRldInput,
         Verbose,
-        TEXT("Move Triggered: Source=%s RawAxis(X=%f Y=%f)"),
+        TEXT("OnMoveTriggered: 入力元=%s 生入力=(%f,%f)"),
         *InputSourceText,
         Axis.X,
         Axis.Y
@@ -282,6 +293,40 @@ void ARldPlayerController::OnMoveTriggered(const FInputActionValue& Value)
     }
 }
 
+/** 待機入力を処理する */
+void ARldPlayerController::OnWaitStarted(const FInputActionValue& Value)
+{
+    // 未使用引数
+    (void)Value;
+
+    // ゲームモード以外では待機処理しない
+    if (!InputRouter || !InputRouter->IsGameMode())
+    {
+        UE_LOG(LogRldInput, Verbose, TEXT("OnWaitStarted: ゲームモード以外のため処理しない"));
+        return;
+    }
+
+    ARldPlayerCharacter* PlayerCharacter = GetRldPlayerCharacter();
+
+    // プレイヤーキャラクター未取得時は待機しない
+    if (!PlayerCharacter)
+    {
+        UE_LOG(LogRldInput, Warning, TEXT("OnWaitStarted: PlayerCharacterがnull"));
+        return;
+    }
+
+    // 待機入力時は押しっぱなし移動を停止
+    StopMoveRepeat();
+
+    UE_LOG(
+        LogRldInput,
+        Log,
+        TEXT("OnWaitStarted: 待機入力を受け付けました")
+    );
+
+    PlayerCharacter->RequestWaitAction();
+}
+
 /** カメラ視点入力を処理する */
 void ARldPlayerController::OnCameraLookTriggered(const FInputActionValue& Value)
 {
@@ -290,7 +335,7 @@ void ARldPlayerController::OnCameraLookTriggered(const FInputActionValue& Value)
     UE_LOG(
         LogRldInput,
         Log,
-        TEXT("CameraLook RawAxis: X=%f Y=%f"),
+        TEXT("OnCameraLookTriggered: 生入力=(%f,%f)"),
         RawAxis.X,
         RawAxis.Y
     );
@@ -298,7 +343,7 @@ void ARldPlayerController::OnCameraLookTriggered(const FInputActionValue& Value)
     // ゲームモード以外ではカメラ視点処理しない
     if (!InputRouter || !InputRouter->IsGameMode())
     {
-        UE_LOG(LogRldInput, Verbose, TEXT("CameraLook skipped: not game mode"));
+        UE_LOG(LogRldInput, Verbose, TEXT("OnCameraLookTriggered: ゲームモード以外のため処理しない"));
         return;
     }
 
@@ -318,7 +363,7 @@ void ARldPlayerController::OnCameraLookTriggered(const FInputActionValue& Value)
     UE_LOG(
         LogRldInput,
         Log,
-        TEXT("CameraLook AfterInvert: X=%f Y=%f"),
+        TEXT("OnCameraLookTriggered: 反転適用後入力=(%f,%f)"),
         Axis.X,
         Axis.Y
     );
@@ -328,14 +373,14 @@ void ARldPlayerController::OnCameraLookTriggered(const FInputActionValue& Value)
     // プレイヤーキャラクター未取得時は視点入力しない
     if (!PlayerCharacter)
     {
-        UE_LOG(LogRldInput, Warning, TEXT("OnCameraLookTriggered: PlayerCharacter is null"));
+        UE_LOG(LogRldInput, Warning, TEXT("OnCameraLookTriggered: PlayerCharacterがnull"));
         return;
     }
 
     // 視点入力受付不可時は処理しない
     if (!PlayerCharacter->CanAcceptLookInput())
     {
-        UE_LOG(LogRldInput, Verbose, TEXT("OnCameraLookTriggered: Look input rejected"));
+        UE_LOG(LogRldInput, Verbose, TEXT("OnCameraLookTriggered: 視点入力を受け付けないため処理しない"));
         return;
     }
 
@@ -350,37 +395,30 @@ void ARldPlayerController::OnCameraZoomTriggered(const FInputActionValue& Value)
     UE_LOG(
         LogRldInput,
         Log,
-        TEXT("CameraZoom RawValue: %f"),
+        TEXT("OnCameraZoomTriggered: 生入力=%f"),
         ZoomValue
     );
 
     // ゲームモード以外ではカメラズーム処理しない
     if (!InputRouter || !InputRouter->IsGameMode())
     {
-        UE_LOG(LogRldInput, Verbose, TEXT("CameraZoom skipped: not game mode"));
+        UE_LOG(LogRldInput, Verbose, TEXT("OnCameraZoomTriggered: ゲームモード以外のため処理しない"));
         return;
     }
-
-    UE_LOG(
-        LogRldInput,
-        Log,
-        TEXT("CameraZoom: %f"),
-        ZoomValue
-    );
 
     ARldPlayerCharacter* PlayerCharacter = GetRldPlayerCharacter();
 
     // プレイヤーキャラクター未取得時はズーム入力しない
     if (!PlayerCharacter)
     {
-        UE_LOG(LogRldInput, Warning, TEXT("OnCameraZoomTriggered: PlayerCharacter is null"));
+        UE_LOG(LogRldInput, Warning, TEXT("OnCameraZoomTriggered: PlayerCharacterがnull"));
         return;
     }
 
     // ズーム入力受付不可時は処理しない
     if (!PlayerCharacter->CanAcceptZoomInput())
     {
-        UE_LOG(LogRldInput, Verbose, TEXT("OnCameraZoomTriggered: Zoom input rejected"));
+        UE_LOG(LogRldInput, Verbose, TEXT("OnCameraZoomTriggered: ズーム入力を受け付けないため処理しない"));
         return;
     }
 
@@ -482,7 +520,7 @@ bool ARldPlayerController::TryConvertInputAxisToCameraRelativeWorldDir(
     UE_LOG(
         LogRldInput,
         Verbose,
-        TEXT("CameraRelativeWorldDir: Axis(X=%f Y=%f) WorldDir(X=%f Y=%f Z=%f)"),
+        TEXT("TryConvertInputAxisToCameraRelativeWorldDir: 入力=(%f,%f) ワールド方向=(%f,%f,%f)"),
         Axis.X,
         Axis.Y,
         OutWorldDirection.X,
@@ -527,7 +565,7 @@ bool ARldPlayerController::TryConvertWorldDirToGridDir(
     UE_LOG(
         LogRldInput,
         Verbose,
-        TEXT("WorldDirToGridDir: WorldDir(X=%f Y=%f) -> GridDir(%d, %d)"),
+        TEXT("TryConvertWorldDirToGridDir: ワールド方向=(%f,%f) グリッド方向=(%d,%d)"),
         WorldDirection.X,
         WorldDirection.Y,
         OutGridDirection.X,
@@ -547,7 +585,7 @@ void ARldPlayerController::ProcessResolvedMoveDirection(
     UE_LOG(
         LogRldInput,
         Log,
-        TEXT("Move: Source=%s Dir(%d, %d) RawAxis(X=%f Y=%f)"),
+        TEXT("ProcessResolvedMoveDirection: 入力元=%s 確定方向=(%d,%d) 生入力=(%f,%f)"),
         *InputSourceText,
         Direction.X,
         Direction.Y,
@@ -562,14 +600,14 @@ void ARldPlayerController::ProcessResolvedMoveDirection(
     // プレイヤーキャラクター未取得時は移動処理しない
     if (!PlayerCharacter)
     {
-        UE_LOG(LogRldInput, Warning, TEXT("ProcessResolvedMoveDirection: PlayerCharacter is null"));
+        UE_LOG(LogRldInput, Warning, TEXT("ProcessResolvedMoveDirection: PlayerCharacterがnull"));
         return;
     }
 
     // 移動入力受付不可時は処理しない
     if (!PlayerCharacter->CanAcceptMoveInput())
     {
-        UE_LOG(LogRldInput, Verbose, TEXT("ProcessResolvedMoveDirection: Move input rejected"));
+        UE_LOG(LogRldInput, Verbose, TEXT("ProcessResolvedMoveDirection: 移動入力を受け付けないため処理しない"));
         return;
     }
 
@@ -617,7 +655,7 @@ void ARldPlayerController::HandleLeftStickMoveTriggered(const FVector2D& Axis)
     {
         if (bLeftStickMoveConsumed)
         {
-            UE_LOG(LogRldInput, Verbose, TEXT("LeftStick reset to neutral"));
+            UE_LOG(LogRldInput, Verbose, TEXT("HandleLeftStickMoveTriggered: 左スティックがニュートラルへ戻りました"));
         }
 
         bLeftStickMoveConsumed = false;
@@ -645,7 +683,7 @@ void ARldPlayerController::HandleLeftStickMoveTriggered(const FVector2D& Axis)
         UE_LOG(
             LogRldInput,
             Warning,
-            TEXT("LeftStick conversion failed: RawAxis(X=%f Y=%f)"),
+            TEXT("HandleLeftStickMoveTriggered: 方向変換に失敗しました 生入力=(%f,%f)"),
             Axis.X,
             Axis.Y
         );
@@ -844,7 +882,7 @@ void ARldPlayerController::TickMoveRepeat()
     UE_LOG(
         LogRldInput,
         Log,
-        TEXT("Move Repeat: Source=%s Dir(%d, %d)"),
+        TEXT("TickMoveRepeat: 入力元=%s リピート方向=(%d,%d)"),
         *RepeatingMoveInputSourceText,
         RepeatingMoveDirection.X,
         RepeatingMoveDirection.Y
@@ -855,7 +893,7 @@ void ARldPlayerController::TickMoveRepeat()
     // プレイヤーキャラクター未取得時は処理しない
     if (!PlayerCharacter)
     {
-        UE_LOG(LogRldInput, Warning, TEXT("TickMoveRepeat: PlayerCharacter is null"));
+        UE_LOG(LogRldInput, Warning, TEXT("TickMoveRepeat: PlayerCharacterがnull"));
         StopMoveRepeat();
         return;
     }
@@ -863,7 +901,7 @@ void ARldPlayerController::TickMoveRepeat()
     // 移動入力受付不可時は今回の処理のみしない
     if (!PlayerCharacter->CanAcceptMoveInput())
     {
-        UE_LOG(LogRldInput, Verbose, TEXT("TickMoveRepeat: Move input rejected"));
+        UE_LOG(LogRldInput, Verbose, TEXT("TickMoveRepeat: 移動入力を受け付けないため今回の処理をしない"));
         return;
     }
 
@@ -957,7 +995,7 @@ void ARldPlayerController::LoadAndApplyInputConfig()
     // 入力設定DataAsset未指定時はルーターへnull適用
     if (InputConfigAsset.IsNull())
     {
-        UE_LOG(LogRldInput, Error, TEXT("InputConfigAsset is null"));
+        UE_LOG(LogRldInput, Error, TEXT("LoadAndApplyInputConfig: InputConfigAssetがnull"));
 
         if (InputRouter)
         {
@@ -972,7 +1010,7 @@ void ARldPlayerController::LoadAndApplyInputConfig()
     UE_LOG(
         LogRldInput,
         Log,
-        TEXT("InputConfig loaded: %s"),
+        TEXT("LoadAndApplyInputConfig: 入力設定をロードしました 名前=%s"),
         LoadedInputConfig ? *LoadedInputConfig->GetName() : TEXT("None")
     );
 
@@ -984,12 +1022,13 @@ void ARldPlayerController::LoadAndApplyInputConfig()
         UE_LOG(
             LogRldInput,
             Log,
-            TEXT("After ApplyConfig: Move=%s Look=%s Zoom=%s UIDir=%s UIScroll=%s"),
-            InputRouter->IA_Move ? TEXT("OK") : TEXT("None"),
-            InputRouter->IA_CameraLook ? TEXT("OK") : TEXT("None"),
-            InputRouter->IA_CameraZoom ? TEXT("OK") : TEXT("None"),
-            InputRouter->IA_UI_Direction ? TEXT("OK") : TEXT("None"),
-            InputRouter->IA_UI_Scroll ? TEXT("OK") : TEXT("None")
+            TEXT("LoadAndApplyInputConfig: 入力設定を適用しました 移動=%s 待機=%s 視点=%s ズーム=%s UI方向=%s UIスクロール=%s"),
+            InputRouter->IA_Move ? TEXT("あり") : TEXT("なし"),
+            LoadedInputConfig && LoadedInputConfig->IA_Wait ? TEXT("あり") : TEXT("なし"),
+            InputRouter->IA_CameraLook ? TEXT("あり") : TEXT("なし"),
+            InputRouter->IA_CameraZoom ? TEXT("あり") : TEXT("なし"),
+            InputRouter->IA_UI_Direction ? TEXT("あり") : TEXT("なし"),
+            InputRouter->IA_UI_Scroll ? TEXT("あり") : TEXT("なし")
         );
     }
 }

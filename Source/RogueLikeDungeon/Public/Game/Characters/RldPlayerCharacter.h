@@ -59,6 +59,14 @@ public:
 
 public:
 
+    // ----- ゲーム固有行動 -----
+
+    /** 待機行動を実行する */
+    UFUNCTION(BlueprintCallable, Category = "Rld|Turn")
+    void RequestWaitAction();
+
+public:
+
     // ----- カメラ方向取得 -----
 
     /**
@@ -98,6 +106,13 @@ private:
      * @param Direction 移動方向
      */
     void HandleMoveRequest(const FIntPoint& Direction);
+
+private:
+
+    // ----- 待機処理 -----
+
+    /** 待機行動を処理する */
+    void HandleWaitRequest();
 
 private:
 

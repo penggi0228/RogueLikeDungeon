@@ -32,6 +32,10 @@ public:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Common|Input|IA")
     TObjectPtr<UInputAction> IA_Move = nullptr;
 
+    // 待機用InputAction
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Common|Input|IA")
+    TObjectPtr<UInputAction> IA_Wait = nullptr;
+
     // カメラ視点操作用InputAction
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Common|Input|IA")
     TObjectPtr<UInputAction> IA_CameraLook = nullptr;
