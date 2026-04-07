@@ -2,9 +2,11 @@
 
 #include "Game/Floor/RldFloorManager.h"
 
+#include "Engine/DataTable.h"
 #include "Kismet/GameplayStatics.h"
 
 #include "Game/Characters/RldPlayerCharacter.h"
+#include "Game/Enemies/RldEnemyManager.h"
 #include "Game/Grid/RldGridManager.h"
 #include "Game/Turn/RldTurnManager.h"
 
@@ -21,10 +23,7 @@ void ARldFloorManager::BeginPlay()
 {
     Super::BeginPlay();
 
-    // 各管理Actorを取得
-    ResolveGridManager();
-    ResolvePlayerCharacter();
-    ResolveTurnManager();
+    ResolveManagers();
 
     if (bStartOnBeginPlay)
     {
@@ -32,26 +31,45 @@ void ARldFloorManager::BeginPlay()
     }
 }
 
-/** フロア開始処理を行う */
+/** 現在のフロア番号でフロア開始処理を行う */
 void ARldFloorManager::StartFloor()
 {
     StartFloorAt(currentFloorIndex);
 }
 
-/** 指定フロアの開始処理を行う */
+/** 指定フロア番号でフロア開始処理を行う */
 void ARldFloorManager::StartFloorAt(int32 floorIndex)
 {
-    currentFloorIndex = FMath::Max(1, floorIndex);
+    const int32 targetFloorIndex = FMath::Max(1, floorIndex);
+    FRldFloorDefinition loadedFloorDefinition;
+
+    // フロア定義読込失敗時は開始しない
+    if (!TryLoadFloorDefinition(targetFloorIndex, loadedFloorDefinition))
+    {
+        UE_LOG(
+            LogRldFloorManager,
+            Warning,
+            TEXT("StartFloorAt: フロア定義読込に失敗したため開始しません フロア番号=%d"),
+            targetFloorIndex
+        );
+        return;
+    }
+
+    currentFloorIndex = targetFloorIndex;
+    currentFloorDefinition = loadedFloorDefinition;
 
     UE_LOG(
         LogRldFloorManager,
         Log,
-        TEXT("StartFloor: フロア番号=%d 開始座標=(%d,%d) 階段座標=(%d,%d)"),
+        TEXT("StartFloorAt: フロア番号=%d グリッドサイズ=(%d,%d) 開始座標=(%d,%d) 階段座標=(%d,%d) 壁数=%d"),
         currentFloorIndex,
-        playerStartGridCoord.X,
-        playerStartGridCoord.Y,
-        stairsGridCoord.X,
-        stairsGridCoord.Y
+        currentFloorDefinition.gridWidth,
+        currentFloorDefinition.gridHeight,
+        currentFloorDefinition.playerStartGridCoord.X,
+        currentFloorDefinition.playerStartGridCoord.Y,
+        currentFloorDefinition.stairsGridCoord.X,
+        currentFloorDefinition.stairsGridCoord.Y,
+        currentFloorDefinition.wallCells.Num()
     );
 
     ApplyFloorState();
@@ -60,44 +78,25 @@ void ARldFloorManager::StartFloorAt(int32 floorIndex)
 /** 次フロアへ進む */
 void ARldFloorManager::GoToNextFloor()
 {
-    ++currentFloorIndex;
+    const int32 nextFloorIndex = currentFloorIndex + 1;
 
     UE_LOG(
         LogRldFloorManager,
         Log,
         TEXT("GoToNextFloor: 次フロア番号=%d"),
-        currentFloorIndex
+        nextFloorIndex
     );
 
-    StartFloor();
+    StartFloorAt(nextFloorIndex);
 }
 
-/** プレイヤー開始座標を設定する */
-void ARldFloorManager::SetPlayerStartGridCoord(const FIntPoint& newGridCoord)
+/** 管理Actor群を取得する */
+void ARldFloorManager::ResolveManagers()
 {
-    playerStartGridCoord = newGridCoord;
-
-    UE_LOG(
-        LogRldFloorManager,
-        Log,
-        TEXT("SetPlayerStartGridCoord: 開始座標=(%d,%d)"),
-        playerStartGridCoord.X,
-        playerStartGridCoord.Y
-    );
-}
-
-/** 階段座標を設定する */
-void ARldFloorManager::SetStairsGridCoord(const FIntPoint& newGridCoord)
-{
-    stairsGridCoord = newGridCoord;
-
-    UE_LOG(
-        LogRldFloorManager,
-        Log,
-        TEXT("SetStairsGridCoord: 階段座標=(%d,%d)"),
-        stairsGridCoord.X,
-        stairsGridCoord.Y
-    );
+    ResolveGridManager();
+    ResolvePlayerCharacter();
+    ResolveTurnManager();
+    ResolveEnemyManager();
 }
 
 /** グリッド管理Actorを取得する */
@@ -176,7 +175,96 @@ void ARldFloorManager::ResolveTurnManager()
     );
 }
 
-/** フロア状態をグリッドとプレイヤーへ反映する */
+/** エネミー管理Actorを取得する */
+void ARldFloorManager::ResolveEnemyManager()
+{
+    AActor* foundActor = UGameplayStatics::GetActorOfClass(GetWorld(), ARldEnemyManager::StaticClass());
+    enemyManager = Cast<ARldEnemyManager>(foundActor);
+
+    if (!enemyManager)
+    {
+        UE_LOG(
+            LogRldFloorManager,
+            Warning,
+            TEXT("ResolveEnemyManager: ARldEnemyManagerがレベル上に見つからない")
+        );
+        return;
+    }
+
+    UE_LOG(
+        LogRldFloorManager,
+        Log,
+        TEXT("ResolveEnemyManager: 名前=%s クラス=%s エネミー数=%d"),
+        *enemyManager->GetName(),
+        *enemyManager->GetClass()->GetName(),
+        enemyManager->GetEnemyCount()
+    );
+}
+
+/**
+ * 指定フロア番号に対応するRowNameを作成する
+ */
+FName ARldFloorManager::BuildFloorRowName(int32 floorIndex) const
+{
+    return FName(*FString::Printf(TEXT("Floor_%03d"), floorIndex));
+}
+
+/**
+ * 指定フロア番号の定義を読込する
+ */
+bool ARldFloorManager::TryLoadFloorDefinition(int32 floorIndex, FRldFloorDefinition& outFloorDefinition) const
+{
+    // DataTable未設定時は読込失敗
+    if (!floorDefinitionDataTable)
+    {
+        UE_LOG(
+            LogRldFloorManager,
+            Warning,
+            TEXT("TryLoadFloorDefinition: floorDefinitionDataTableがnullのため読込に失敗しました")
+        );
+        return false;
+    }
+
+    const FName rowName = BuildFloorRowName(floorIndex);
+    static const FString contextString = TEXT("RldFloorDefinitionLookup");
+
+    const FRldFloorDefinition* foundDefinition = floorDefinitionDataTable->FindRow<FRldFloorDefinition>(
+        rowName,
+        contextString,
+        true
+    );
+
+    // 対応行未取得時は読込失敗
+    if (!foundDefinition)
+    {
+        UE_LOG(
+            LogRldFloorManager,
+            Warning,
+            TEXT("TryLoadFloorDefinition: 対応行が存在しないため読込に失敗しました RowName=%s"),
+            *rowName.ToString()
+        );
+        return false;
+    }
+
+    outFloorDefinition = *foundDefinition;
+
+    UE_LOG(
+        LogRldFloorManager,
+        Log,
+        TEXT("TryLoadFloorDefinition: 読込しました RowName=%s グリッドサイズ=(%d,%d) 開始座標=(%d,%d) 階段座標=(%d,%d)"),
+        *rowName.ToString(),
+        outFloorDefinition.gridWidth,
+        outFloorDefinition.gridHeight,
+        outFloorDefinition.playerStartGridCoord.X,
+        outFloorDefinition.playerStartGridCoord.Y,
+        outFloorDefinition.stairsGridCoord.X,
+        outFloorDefinition.stairsGridCoord.Y
+    );
+
+    return true;
+}
+
+/** フロア状態をグリッドとプレイヤーと敵へ反映する */
 void ARldFloorManager::ApplyFloorState()
 {
     // GridManager未取得時は反映しない
@@ -201,21 +289,52 @@ void ARldFloorManager::ApplyFloorState()
         return;
     }
 
-    // GridManagerへ階段座標を反映
-    gridManager->SetStairsGridCoord(stairsGridCoord);
+    // フロア定義をGridManagerへ反映
+    gridManager->ApplyFloorDefinition(currentFloorDefinition);
+
+    // 先に占有情報をクリア
+    gridManager->ClearAllOccupants();
+
+    // 先に敵を初期状態へ戻す
+    if (enemyManager)
+    {
+        enemyManager->ResetAllEnemiesToInitialState();
+    }
+    else
+    {
+        UE_LOG(
+            LogRldFloorManager,
+            Warning,
+            TEXT("ApplyFloorState: EnemyManager未取得のため敵初期化を行いません")
+        );
+    }
 
     // プレイヤー開始座標を反映
-    playerCharacter->SetCurrentGridCoord(playerStartGridCoord);
-    playerCharacter->SetActorLocation(gridManager->GridToWorld(playerStartGridCoord));
+    playerCharacter->SetCurrentGridCoord(currentFloorDefinition.playerStartGridCoord);
+    playerCharacter->SetActorLocation(gridManager->GridToWorld(currentFloorDefinition.playerStartGridCoord));
+
+    // プレイヤー開始位置を占有登録
+    if (!gridManager->RegisterOccupant(currentFloorDefinition.playerStartGridCoord, playerCharacter))
+    {
+        UE_LOG(
+            LogRldFloorManager,
+            Warning,
+            TEXT("ApplyFloorState: プレイヤー開始位置の占有登録に失敗しました 開始座標=(%d,%d)"),
+            currentFloorDefinition.playerStartGridCoord.X,
+            currentFloorDefinition.playerStartGridCoord.Y
+        );
+    }
 
     UE_LOG(
         LogRldFloorManager,
         Log,
-        TEXT("ApplyFloorState: 開始座標=(%d,%d) 階段座標=(%d,%d)"),
-        playerStartGridCoord.X,
-        playerStartGridCoord.Y,
-        stairsGridCoord.X,
-        stairsGridCoord.Y
+        TEXT("ApplyFloorState: フロア番号=%d 開始座標=(%d,%d) 階段座標=(%d,%d) 壁数=%d"),
+        currentFloorIndex,
+        currentFloorDefinition.playerStartGridCoord.X,
+        currentFloorDefinition.playerStartGridCoord.Y,
+        currentFloorDefinition.stairsGridCoord.X,
+        currentFloorDefinition.stairsGridCoord.Y,
+        currentFloorDefinition.wallCells.Num()
     );
 
     // フロア開始時はターンを初期状態へ戻す

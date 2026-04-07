@@ -1,4 +1,4 @@
-// CmnPlayerCharacterBase.hPlayerCharacter
+// CmnPlayerCharacterBase.h
 
 #pragma once
 

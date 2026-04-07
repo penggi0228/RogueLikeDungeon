@@ -1,27 +1,27 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
+// CmnGridActorBase.cpp
 
 #include "Common/Grid/CmnGridActorBase.h"
 
-// Sets default values
+DEFINE_LOG_CATEGORY_STATIC(LogCmnGridActorBase, Log, All);
+
+/** 共通グリッドActorを初期化する */
 ACmnGridActorBase::ACmnGridActorBase()
 {
- 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
-	PrimaryActorTick.bCanEverTick = true;
-
+    PrimaryActorTick.bCanEverTick = false;
 }
 
-// Called when the game starts or when spawned
-void ACmnGridActorBase::BeginPlay()
+/**
+ * 現在のグリッド座標を設定する
+ */
+void ACmnGridActorBase::SetCurrentGridCoord(const FIntPoint& newGridCoord)
 {
-	Super::BeginPlay();
-	
+    currentGridCoord = newGridCoord;
+
+    UE_LOG(
+        LogCmnGridActorBase,
+        Log,
+        TEXT("SetCurrentGridCoord: 現在座標=(%d,%d)"),
+        currentGridCoord.X,
+        currentGridCoord.Y
+    );
 }
-
-// Called every frame
-void ACmnGridActorBase::Tick(float DeltaTime)
-{
-	Super::Tick(DeltaTime);
-
-}
-

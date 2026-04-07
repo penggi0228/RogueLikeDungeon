@@ -1,27 +1,131 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
+// RldEnemyManager.cpp
 
 #include "Game/Enemies/RldEnemyManager.h"
 
-// Sets default values
+#include "Kismet/GameplayStatics.h"
+
+#include "Game/Enemies/RldEnemyBase.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LogRldEnemyManager, Log, All);
+
+/** エネミー管理Actorを初期化する */
 ARldEnemyManager::ARldEnemyManager()
 {
- 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
-	PrimaryActorTick.bCanEverTick = true;
-
+    PrimaryActorTick.bCanEverTick = false;
 }
 
-// Called when the game starts or when spawned
+/** 開始時処理 */
 void ARldEnemyManager::BeginPlay()
 {
-	Super::BeginPlay();
-	
+    Super::BeginPlay();
+
+    RefreshEnemyList();
 }
 
-// Called every frame
-void ARldEnemyManager::Tick(float DeltaTime)
+/** レベル上のエネミー一覧を再取得する */
+void ARldEnemyManager::RefreshEnemyList()
 {
-	Super::Tick(DeltaTime);
+    TArray<AActor*> foundActors;
+    UGameplayStatics::GetAllActorsOfClass(GetWorld(), ARldEnemyBase::StaticClass(), foundActors);
 
+    enemyList.Empty();
+
+    for (AActor* foundActor : foundActors)
+    {
+        ARldEnemyBase* enemy = Cast<ARldEnemyBase>(foundActor);
+
+        if (!enemy)
+        {
+            continue;
+        }
+
+        enemyList.Add(enemy);
+    }
+
+    UE_LOG(
+        LogRldEnemyManager,
+        Log,
+        TEXT("RefreshEnemyList: エネミー数=%d"),
+        enemyList.Num()
+    );
 }
 
+/** 全エネミーのターン行動を実行する */
+void ARldEnemyManager::ExecuteEnemyTurn()
+{
+    // 念のため都度一覧を更新
+    RefreshEnemyList();
+
+    if (enemyList.Num() == 0)
+    {
+        UE_LOG(
+            LogRldEnemyManager,
+            Log,
+            TEXT("ExecuteEnemyTurn: エネミーが存在しないため処理しません")
+        );
+        return;
+    }
+
+    UE_LOG(
+        LogRldEnemyManager,
+        Log,
+        TEXT("ExecuteEnemyTurn: エネミーターンを開始します エネミー数=%d"),
+        enemyList.Num()
+    );
+
+    for (ARldEnemyBase* enemy : enemyList)
+    {
+        if (!enemy)
+        {
+            continue;
+        }
+
+        enemy->ExecuteTurn();
+    }
+
+    UE_LOG(
+        LogRldEnemyManager,
+        Log,
+        TEXT("ExecuteEnemyTurn: エネミーターンを終了しました")
+    );
+}
+
+/** フロア開始時に全エネミーを初期状態へ戻す */
+void ARldEnemyManager::ResetAllEnemiesToInitialState()
+{
+    // 念のため都度一覧を更新
+    RefreshEnemyList();
+
+    if (enemyList.Num() == 0)
+    {
+        UE_LOG(
+            LogRldEnemyManager,
+            Log,
+            TEXT("ResetAllEnemiesToInitialState: エネミーが存在しないため処理しません")
+        );
+        return;
+    }
+
+    UE_LOG(
+        LogRldEnemyManager,
+        Log,
+        TEXT("ResetAllEnemiesToInitialState: 全エネミーの初期化を開始します エネミー数=%d"),
+        enemyList.Num()
+    );
+
+    for (ARldEnemyBase* enemy : enemyList)
+    {
+        if (!enemy)
+        {
+            continue;
+        }
+
+        enemy->ResetToInitialState();
+    }
+
+    UE_LOG(
+        LogRldEnemyManager,
+        Log,
+        TEXT("ResetAllEnemiesToInitialState: 全エネミーの初期化を終了しました")
+    );
+}

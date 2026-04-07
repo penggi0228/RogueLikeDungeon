@@ -4,15 +4,18 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Game/Floor/RldFloorDefinition.h"
 #include "RldFloorManager.generated.h"
 
+class UDataTable;
 class ARldGridManager;
 class ARldPlayerCharacter;
 class ARldTurnManager;
+class ARldEnemyManager;
 
 /**
  * フロア進行管理Actor
- * フロア開始と次フロア遷移を管理する
+ * フロア定義の読込とフロア開始処理を管理する
  */
 UCLASS()
 class ROGUELIKEDUNGEON_API ARldFloorManager : public AActor
@@ -32,26 +35,23 @@ protected:
 
 public:
 
-    // ----- フロア進行 ----- 
+    // ----- フロア進行 -----
 
     /**
-     * フロア開始処理を行う
-     * 現在のフロア番号で開始する
+     * 現在のフロア番号でフロア開始処理を行う
      */
     UFUNCTION(BlueprintCallable, Category = "Rld|Floor")
     void StartFloor();
 
     /**
-     * 指定フロアの開始処理を行う
+     * 指定フロア番号でフロア開始処理を行う
      *
      * @param floorIndex フロア番号
      */
     UFUNCTION(BlueprintCallable, Category = "Rld|Floor")
     void StartFloorAt(int32 floorIndex);
 
-    /**
-     * 次フロアへ進む
-     */
+    /** 次フロアへ進む */
     UFUNCTION(BlueprintCallable, Category = "Rld|Floor")
     void GoToNextFloor();
 
@@ -66,31 +66,19 @@ public:
         return currentFloorIndex;
     }
 
-    /** プレイヤー開始グリッド座標を取得する */
+    /** 現在フロアの定義を取得する */
     UFUNCTION(BlueprintPure, Category = "Rld|Floor")
-    FIntPoint GetPlayerStartGridCoord() const
+    FRldFloorDefinition GetCurrentFloorDefinition() const
     {
-        return playerStartGridCoord;
-    }
-
-    /** 階段グリッド座標を取得する */
-    UFUNCTION(BlueprintPure, Category = "Rld|Floor")
-    FIntPoint GetStairsGridCoord() const
-    {
-        return stairsGridCoord;
+        return currentFloorDefinition;
     }
 
 public:
 
-    // ----- Setter -----
+    // ----- 管理Actor取得 -----
 
-    /** プレイヤー開始グリッド座標を設定する */
     UFUNCTION(BlueprintCallable, Category = "Rld|Floor")
-    void SetPlayerStartGridCoord(const FIntPoint& newGridCoord);
-
-    /** 階段グリッド座標を設定する */
-    UFUNCTION(BlueprintCallable, Category = "Rld|Floor")
-    void SetStairsGridCoord(const FIntPoint& newGridCoord);
+    void ResolveManagers();
 
 private:
 
@@ -99,12 +87,34 @@ private:
     void ResolveGridManager();
     void ResolvePlayerCharacter();
     void ResolveTurnManager();
+    void ResolveEnemyManager();
+
+private:
+
+    // ----- フロア定義読込 -----
+
+    /**
+     * 指定フロア番号に対応するRowNameを作成する
+     *
+     * @param floorIndex フロア番号
+     * @return RowName
+     */
+    FName BuildFloorRowName(int32 floorIndex) const;
+
+    /**
+     * 指定フロア番号の定義を読込する
+     *
+     * @param floorIndex フロア番号
+     * @param outFloorDefinition 読込結果
+     * @return 読込成功ならtrue
+     */
+    bool TryLoadFloorDefinition(int32 floorIndex, FRldFloorDefinition& outFloorDefinition) const;
 
 private:
 
     // ----- フロア反映 -----
 
-    /** フロア状態をグリッドとプレイヤーへ反映する */
+    /** フロア状態をグリッドとプレイヤーと敵へ反映する */
     void ApplyFloorState();
 
 private:
@@ -120,6 +130,21 @@ private:
     UPROPERTY(Transient)
     TObjectPtr<ARldTurnManager> turnManager = nullptr;
 
+    UPROPERTY(Transient)
+    TObjectPtr<ARldEnemyManager> enemyManager = nullptr;
+
+private:
+
+    // ----- フロア設定 -----
+
+    // フロア定義DataTable
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rld|Floor", meta = (AllowPrivateAccess = "true"))
+    TObjectPtr<UDataTable> floorDefinitionDataTable = nullptr;
+
+    // BeginPlay時に自動開始するか
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rld|Floor", meta = (AllowPrivateAccess = "true"))
+    bool bStartOnBeginPlay = true;
+
 private:
 
     // ----- フロア状態 -----
@@ -128,15 +153,7 @@ private:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Rld|Floor", meta = (AllowPrivateAccess = "true", ClampMin = "1"))
     int32 currentFloorIndex = 1;
 
-    // プレイヤー開始位置
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rld|Floor", meta = (AllowPrivateAccess = "true"))
-    FIntPoint playerStartGridCoord = FIntPoint(1, 1);
-
-    // 階段位置
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rld|Floor", meta = (AllowPrivateAccess = "true"))
-    FIntPoint stairsGridCoord = FIntPoint(18, 18);
-
-    // BeginPlay時に自動開始するか
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rld|Floor", meta = (AllowPrivateAccess = "true"))
-    bool bStartOnBeginPlay = true;
+    // 現在フロアの定義
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Rld|Floor", meta = (AllowPrivateAccess = "true"))
+    FRldFloorDefinition currentFloorDefinition;
 };

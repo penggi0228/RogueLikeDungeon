@@ -63,6 +63,29 @@ void ARldPlayerCharacter::BeginPlay()
             snappedWorldLocation.Y,
             snappedWorldLocation.Z
         );
+
+        // 初期配置時の占有登録はFloorManager側で行う
+        // ここで再登録すると、開始時に二重登録で警告が出る
+        if (floorManager)
+        {
+            UE_LOG(
+                LogRldPlayerCharacter,
+                Verbose,
+                TEXT("BeginPlay: 初期位置の占有登録はFloorManagerに委譲します グリッド座標=(%d,%d)"),
+                initialGridCoord.X,
+                initialGridCoord.Y
+            );
+        }
+        else
+        {
+            UE_LOG(
+                LogRldPlayerCharacter,
+                Verbose,
+                TEXT("BeginPlay: FloorManager未取得のため占有登録は行いません グリッド座標=(%d,%d)"),
+                initialGridCoord.X,
+                initialGridCoord.Y
+            );
+        }
     }
 }
 
@@ -346,6 +369,21 @@ void ARldPlayerCharacter::HandleMoveRequest(const FIntPoint& Direction)
             LogRldPlayerCharacter,
             Warning,
             TEXT("HandleMoveRequest: 通行不可のため移動を中止します 次座標=(%d,%d)"),
+            nextGridCoord.X,
+            nextGridCoord.Y
+        );
+        return;
+    }
+
+    // 占有情報を移動
+    if (!gridManager->MoveOccupant(currentCoord, nextGridCoord, this))
+    {
+        UE_LOG(
+            LogRldPlayerCharacter,
+            Warning,
+            TEXT("HandleMoveRequest: 占有情報の移動に失敗したため移動を中止します 現在座標=(%d,%d) 次座標=(%d,%d)"),
+            currentCoord.X,
+            currentCoord.Y,
             nextGridCoord.X,
             nextGridCoord.Y
         );

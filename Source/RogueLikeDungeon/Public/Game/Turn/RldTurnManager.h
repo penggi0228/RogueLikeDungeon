@@ -6,6 +6,8 @@
 #include "GameFramework/Actor.h"
 #include "RldTurnManager.generated.h"
 
+class ARldEnemyManager;
+
 /**
  * ターン進行を管理するActor
  * 現在のターン数の保持と更新を行う
@@ -19,6 +21,12 @@ public:
 
     /** ターン管理Actorを初期化する */
     ARldTurnManager();
+
+protected:
+
+    // ----- AActor -----
+
+    virtual void BeginPlay() override;
 
 public:
 
@@ -50,6 +58,21 @@ public:
     {
         return currentTurnIndex;
     }
+
+private:
+
+    // ----- 管理Actor取得 -----
+
+    /** エネミー管理Actorを取得する */
+    void ResolveEnemyManager();
+
+private:
+
+    // ----- 管理Actor参照 -----
+
+    // エネミー管理Actor参照
+    UPROPERTY(Transient)
+    TObjectPtr<ARldEnemyManager> enemyManager = nullptr;
 
 private:
 

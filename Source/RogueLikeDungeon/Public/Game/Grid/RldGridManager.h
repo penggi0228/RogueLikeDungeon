@@ -5,14 +5,14 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "Common/Grid/CmnGridDefinition.h"
+#include "Game/Floor/RldFloorDefinition.h"
 #include "RldGridManager.generated.h"
 
 /**
  * RogueLikeDungeon用グリッド管理Actor
  *
- * レベル上のグリッド範囲と通行可否判定を管理する
- * 座標変換ルール自体は共通関数を利用し、
- * ゲーム側では定義値の保持と判定責務を担当する
+ * レベル上のグリッド範囲・通行可否・占有情報を管理する
+ * フロア定義の反映後は、現在フロアのグリッド状態を保持する
  */
 UCLASS()
 class ROGUELIKEDUNGEON_API ARldGridManager : public AActor
@@ -23,6 +23,24 @@ public:
 
     /** コンストラクタ */
     ARldGridManager();
+
+protected:
+
+    // ----- AActor -----
+
+    virtual void BeginPlay() override;
+
+public:
+
+    // ----- フロア定義反映 -----
+
+    /**
+     * フロア定義を現在のグリッド状態へ反映する
+     *
+     * @param floorDefinition 反映するフロア定義
+     */
+    UFUNCTION(BlueprintCallable, Category = "Rld|Grid")
+    void ApplyFloorDefinition(const FRldFloorDefinition& floorDefinition);
 
 public:
 
@@ -56,6 +74,15 @@ public:
     bool IsStairsCell(const FIntPoint& gridCoord) const;
 
     /**
+     * 指定グリッド座標が占有されているか判定する
+     *
+     * @param gridCoord 判定対象グリッド座標
+     * @return 占有されているならtrue
+     */
+    UFUNCTION(BlueprintCallable, Category = "Rld|Grid")
+    bool IsOccupied(const FIntPoint& gridCoord) const;
+
+    /**
      * 指定グリッド座標へ通行可能か判定する
      *
      * @param gridCoord 判定対象グリッド座標
@@ -63,6 +90,54 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "Rld|Grid")
     bool IsWalkable(const FIntPoint& gridCoord) const;
+
+public:
+
+    // ----- 占有情報操作 -----
+
+    /**
+     * 指定グリッド座標の占有Actorを取得する
+     *
+     * @param gridCoord 取得対象グリッド座標
+     * @return 占有Actor
+     */
+    UFUNCTION(BlueprintCallable, Category = "Rld|Grid")
+    AActor* GetOccupyingActor(const FIntPoint& gridCoord) const;
+
+    /**
+     * グリッド座標へ占有Actorを登録する
+     *
+     * @param gridCoord 登録先グリッド座標
+     * @param occupantActor 登録するActor
+     * @return 登録成功ならtrue
+     */
+    UFUNCTION(BlueprintCallable, Category = "Rld|Grid")
+    bool RegisterOccupant(const FIntPoint& gridCoord, AActor* occupantActor);
+
+    /**
+     * グリッド座標から占有Actorを解除する
+     *
+     * @param gridCoord 解除対象グリッド座標
+     * @param occupantActor 解除するActor
+     * @return 解除成功ならtrue
+     */
+    UFUNCTION(BlueprintCallable, Category = "Rld|Grid")
+    bool UnregisterOccupant(const FIntPoint& gridCoord, AActor* occupantActor);
+
+    /**
+     * 占有Actorを別グリッド座標へ移動する
+     *
+     * @param fromGridCoord 移動前グリッド座標
+     * @param toGridCoord 移動後グリッド座標
+     * @param occupantActor 移動するActor
+     * @return 移動成功ならtrue
+     */
+    UFUNCTION(BlueprintCallable, Category = "Rld|Grid")
+    bool MoveOccupant(const FIntPoint& fromGridCoord, const FIntPoint& toGridCoord, AActor* occupantActor);
+
+    /** すべての占有情報をクリアする */
+    UFUNCTION(BlueprintCallable, Category = "Rld|Grid")
+    void ClearAllOccupants();
 
 public:
 
@@ -159,48 +234,52 @@ public:
 
 private:
 
-    // ----- グリッド設定 -----
+    // ----- 初期化補助 -----
 
-    /** グリッド横幅 */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rld|Grid", meta = (ClampMin = "1", AllowPrivateAccess = "true"))
-    int32 gridWidth = 20;
-
-    /** グリッド縦幅 */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rld|Grid", meta = (ClampMin = "1", AllowPrivateAccess = "true"))
-    int32 gridHeight = 20;
+    /** 必要に応じて外周壁を自動生成する */
+    void GenerateOuterWallCells();
 
     /**
-     * 共通グリッド定義
+     * 壁マスを重複なしで追加する
      *
-     * 変換式ではなく定義値を持たせることで、
-     * ロジックの共通化とゲーム固有値の分離を両立する
+     * @param wallCoord 追加したい壁マス座標
      */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rld|Grid", meta = (AllowPrivateAccess = "true"))
+    void AddWallCellUnique(const FIntPoint& wallCoord);
+
+private:
+
+    // ----- グリッド状態 -----
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Rld|Grid", meta = (AllowPrivateAccess = "true"))
+    int32 gridWidth = 20;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Rld|Grid", meta = (AllowPrivateAccess = "true"))
+    int32 gridHeight = 20;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Rld|Grid", meta = (AllowPrivateAccess = "true"))
     FCmnGridDefinition gridDefinition;
 
 private:
 
-    // ----- 壁マス設定 -----
+    // ----- 壁マス状態 -----
 
-    /**
-     * 壁マス座標配列
-     *
-     * 現段階では手動設定で十分なため配列で保持する
-     * 将来的にはダンジョン生成結果から一括設定する想定
-     */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rld|Grid|Wall", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Rld|Grid|Wall", meta = (AllowPrivateAccess = "true"))
     TArray<FIntPoint> wallCells;
+
+    // 現在フロア反映時に外周壁を自動生成するか
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Rld|Grid|Wall", meta = (AllowPrivateAccess = "true"))
+    bool bGenerateOuterWallsOnBeginPlay = true;
 
 private:
 
-    // ----- 特殊マス設定 -----
+    // ----- 特殊マス状態 -----
 
-    /**
-     * 階段マス座標
-     *
-     * 現段階では1フロアに1つだけ配置する前提で保持する
-     * 将来的に上下階段や複数特殊マスへ拡張する場合は管理方法を見直す
-     */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rld|Grid|Special", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Rld|Grid|Special", meta = (AllowPrivateAccess = "true"))
     FIntPoint stairsGridCoord = FIntPoint(18, 18);
+
+private:
+
+    // ----- 占有情報 -----
+
+    TMap<FIntPoint, TWeakObjectPtr<AActor>> occupantMap;
 };
