@@ -8,16 +8,17 @@
 #include "InputMappingContext.h"
 #include "TimerManager.h"
 
-/** 所有者(PC)とEnhancedInputのSubsystemを保持 */
+/** PlayerControllerとEnhancedInputSubsystemを設定する */
 void UCmnInputRouter::Initialize(APlayerController* InPC, UEnhancedInputLocalPlayerSubsystem* InSubsys)
 {
     PC = InPC;
     Subsys = InSubsys;
 }
 
-/** 入力アセット参照とパラメータをDataAssetから適用 */
+/** DataAssetから入力設定を適用する */
 void UCmnInputRouter::ApplyConfig(const UCmnInputConfig* Config)
 {
+    // Config未指定時は入力アセット参照をクリア
     if (!Config)
     {
         IMC_Game = nullptr;
@@ -31,36 +32,38 @@ void UCmnInputRouter::ApplyConfig(const UCmnInputConfig* Config)
         return;
     }
 
-    IMC_Game = Config->IMC_Game;                         // ゲーム操作用IMC
-    IMC_UI = Config->IMC_UI;                                   // UI操作用IMC
+    // 入力アセット参照を反映
+    IMC_Game = Config->IMC_Game;
+    IMC_UI = Config->IMC_UI;
 
-    IA_Move = Config->IA_Move;                               // ゲーム移動(Axis2D)
-    IA_CameraLook = Config->IA_CameraLook;           // カメラ視点(Axis2D)
-    IA_CameraZoom = Config->IA_CameraZoom;        // カメラズーム(Axis1D)
-    IA_UI_Direction = Config->IA_UI_Direction;           // UI方向入力(Axis2D)
-    IA_UI_Scroll = Config->IA_UI_Scroll;                     // UIスクロール(Axis1D)
+    IA_Move = Config->IA_Move;
+    IA_CameraLook = Config->IA_CameraLook;
+    IA_CameraZoom = Config->IA_CameraZoom;
+    IA_UI_Direction = Config->IA_UI_Direction;
+    IA_UI_Scroll = Config->IA_UI_Scroll;
 
-    UIRepeatDelay = Config->UIRepeatDelay;              // UIリピート：初回遅延(秒)
-    UIRepeatInterval = Config->UIRepeatInterval;        // UIリピート：連続間隔(秒)
-    DeadZone = Config->DeadZone;                           // 方向入力のデッドゾーン(0..1)
+    // 入力設定値を反映
+    UIRepeatDelay = Config->UIRepeatDelay;
+    UIRepeatInterval = Config->UIRepeatInterval;
+    DeadZone = Config->DeadZone;
 }
 
-/** UI入力を受けるモードかどうか */
+/** UI入力を受け付けるモードか判定する */
 bool UCmnInputRouter::IsUIMode() const
 {
     return (CurrentMode == ECmnInputMode::Menu) || (CurrentMode == ECmnInputMode::Dialog);
 }
 
-/** 入力モード切替(IMC + InputMode + カーソル) */
+/** 入力モードを切り替える */
 void UCmnInputRouter::SetInputMode(ECmnInputMode NewMode)
 {
-    // 入力モード切替(IMC+InputMode+カーソル)
-    // ※初回は同じモードでも適用する
+    // 初回適用後に同一モードが指定された場合は何もしない
     if (bAppliedAtLeastOnce && CurrentMode == NewMode)
     {
         return;
     }
 
+    // 入力モード更新とUIリピート停止
     bAppliedAtLeastOnce = true;
     CurrentMode = NewMode;
     StopUIRepeat();
@@ -68,6 +71,7 @@ void UCmnInputRouter::SetInputMode(ECmnInputMode NewMode)
     switch (CurrentMode)
     {
     case ECmnInputMode::Game:
+        // ゲーム操作用の入力状態を適用
         ApplyMappingContexts(false);
         if (PC)
         {
@@ -78,6 +82,7 @@ void UCmnInputRouter::SetInputMode(ECmnInputMode NewMode)
 
     case ECmnInputMode::Menu:
     case ECmnInputMode::Dialog:
+        // UI操作用の入力状態を適用
         ApplyMappingContexts(true);
         if (PC)
         {
@@ -89,6 +94,7 @@ void UCmnInputRouter::SetInputMode(ECmnInputMode NewMode)
         break;
 
     case ECmnInputMode::Disabled:
+        // 操作不能用の入力状態を適用
         ApplyMappingContexts(false);
         if (PC)
         {
@@ -104,7 +110,7 @@ void UCmnInputRouter::SetInputMode(ECmnInputMode NewMode)
     OnInputModeChanged.Broadcast(CurrentMode);
 }
 
-/** IMC入れ替え */
+/** IMCを適用する */
 void UCmnInputRouter::ApplyMappingContexts(bool bEnableUI)
 {
     if (!Subsys)
@@ -113,49 +119,54 @@ void UCmnInputRouter::ApplyMappingContexts(bool bEnableUI)
         return;
     }
 
-    // 最初にIMCをクリア(入力奪取防止)
+    // 既存のIMCをクリア
     Subsys->ClearAllMappings();
 
-    // いったん外して付け直す
+    // 再適用前に現在のIMCを解除
     if (IMC_Game)
     {
         Subsys->RemoveMappingContext(IMC_Game);
     }
 
-    if (IMC_UI) 
+    if (IMC_UI)
     {
         Subsys->RemoveMappingContext(IMC_UI);
     }
 
-    // Gameは常時
+    // ゲーム用IMCを適用
     if (IMC_Game)
     {
         Subsys->AddMappingContext(IMC_Game, 0);
     }
 
-    // UIは必要時のみ
+    // 必要時のみUI用IMCを適用
     if (bEnableUI && IMC_UI)
     {
         Subsys->AddMappingContext(IMC_UI, 10);
     }
 
-    UE_LOG(LogTemp, Warning, TEXT("ApplyMappingContexts: GameIMC=%s UIIMC=%s EnableUI=%d"),
+    UE_LOG(
+        LogTemp,
+        Warning,
+        TEXT("ApplyMappingContexts: GameIMC=%s UIIMC=%s EnableUI=%d"),
         IMC_Game ? *IMC_Game->GetName() : TEXT("NULL"),
         IMC_UI ? *IMC_UI->GetName() : TEXT("NULL"),
-        bEnableUI ? 1 : 0);
+        bEnableUI ? 1 : 0
+    );
 }
 
-/** Axis2D を 4方向にスナップ(デッドゾーン考慮) */
+/** Axis2D入力を4方向へ変換する */
 bool UCmnInputRouter::SnapToCardinal(const FVector2D& Axis, FIntPoint& OutDir) const
 {
     OutDir = FIntPoint::ZeroValue;
 
+    // デッドゾーン未満の入力は無効
     if (Axis.SizeSquared() < DeadZone * DeadZone)
     {
         return false;
     }
 
-    // 大きい方の軸へスナップ(斜め入力は水平/垂直へ寄せる)
+    // 入力値の大きい軸を採用
     if (FMath::Abs(Axis.X) > FMath::Abs(Axis.Y))
     {
         OutDir = (Axis.X > 0.0f) ? FIntPoint(1, 0) : FIntPoint(-1, 0);
@@ -168,9 +179,10 @@ bool UCmnInputRouter::SnapToCardinal(const FVector2D& Axis, FIntPoint& OutDir) c
     return true;
 }
 
-/** UIリピート：遅延 → 連続 のTimerを開始 */
+/** UIリピートを開始する */
 void UCmnInputRouter::StartUIRepeat(const FIntPoint& Dir)
 {
+    // リピート状態と現在方向を更新
     bUIRepeating = true;
     CurrentUIDir = Dir;
 
@@ -187,11 +199,11 @@ void UCmnInputRouter::StartUIRepeat(const FIntPoint& Dir)
 
     FTimerManager& TM = World->GetTimerManager();
 
-    // 既存Timerを停止して再スタート(方向変更時もここを通す)
+    // 既存のUIリピートTimerを停止
     TM.ClearTimer(RepeatDelayHandle);
     TM.ClearTimer(RepeatIntervalHandle);
 
-    // 遅延後に初回リピート開始
+    // 初回遅延Timerを開始
     TM.SetTimer(
         RepeatDelayHandle,
         this,
@@ -201,9 +213,10 @@ void UCmnInputRouter::StartUIRepeat(const FIntPoint& Dir)
     );
 }
 
-/** UIリピート停止(Timer停止) */
+/** UIリピートを停止する */
 void UCmnInputRouter::StopUIRepeat()
 {
+    // リピート状態と現在方向を初期化
     bUIRepeating = false;
     CurrentUIDir = FIntPoint::ZeroValue;
 
@@ -219,18 +232,22 @@ void UCmnInputRouter::StopUIRepeat()
     }
 
     FTimerManager& TM = World->GetTimerManager();
+
+    // UIリピートTimerを停止
     TM.ClearTimer(RepeatDelayHandle);
     TM.ClearTimer(RepeatIntervalHandle);
 }
 
+/** UIリピート遅延完了時の処理を行う */
 void UCmnInputRouter::OnRepeatDelayElapsed()
 {
-    // 遅延後：まず1回発火して、その後は連続リピートへ
+    // UIリピート中かつUIモード時のみ処理
     if (!bUIRepeating || !IsUIMode())
     {
         return;
     }
 
+    // 初回の方向入力通知を発火
     OnUIDirection.Broadcast(CurrentUIDir);
 
     if (!PC)
@@ -246,7 +263,7 @@ void UCmnInputRouter::OnRepeatDelayElapsed()
 
     FTimerManager& TM = World->GetTimerManager();
 
-    // 連続リピート開始
+    // 連続リピートTimerを開始
     TM.SetTimer(
         RepeatIntervalHandle,
         this,
@@ -256,9 +273,10 @@ void UCmnInputRouter::OnRepeatDelayElapsed()
     );
 }
 
+/** UIリピート間隔ごとの処理を行う */
 void UCmnInputRouter::OnRepeatIntervalElapsed()
 {
-    // 連続リピート：一定間隔で方向イベントを投げる
+    // UIリピート中かつUIモード時のみ処理
     if (!bUIRepeating || !IsUIMode())
     {
         return;
@@ -267,9 +285,10 @@ void UCmnInputRouter::OnRepeatIntervalElapsed()
     OnUIDirection.Broadcast(CurrentUIDir);
 }
 
+/** UI方向入力を処理する */
 void UCmnInputRouter::HandleUIDirectionAxis(const FVector2D& Axis)
 {
-    // UI方向入力：Axis2D入力を方向イベントへ変換(Menu/Dialog のみ)
+    // UIモード以外では処理しない
     if (!IsUIMode())
     {
         return;
@@ -278,12 +297,12 @@ void UCmnInputRouter::HandleUIDirectionAxis(const FVector2D& Axis)
     FIntPoint Dir;
     if (!SnapToCardinal(Axis, Dir))
     {
-        // スティックを戻したらリピート停止
+        // デッドゾーン未満の入力時はUIリピート停止
         StopUIRepeat();
         return;
     }
 
-    // 初回 or 方向変更時は即時発火(十字の感覚に合わせる)
+    // 初回入力時または方向変更時は即時通知
     if (!bUIRepeating || Dir != CurrentUIDir)
     {
         OnUIDirection.Broadcast(Dir);
@@ -291,15 +310,18 @@ void UCmnInputRouter::HandleUIDirectionAxis(const FVector2D& Axis)
     }
 }
 
+/** UIスクロール入力を処理する */
 void UCmnInputRouter::HandleUIScrollAxis(float Amount)
 {
+    // UIモード以外では処理しない
     if (!IsUIMode())
     {
         return;
     }
 
-    // デッドゾーン的なしきい値(右スティック微小入力を無視)
     const float Threshold = 0.2f;
+
+    // 微小入力は無視
     if (FMath::Abs(Amount) < Threshold)
     {
         return;
@@ -308,8 +330,8 @@ void UCmnInputRouter::HandleUIScrollAxis(float Amount)
     OnUIScroll.Broadcast(Amount);
 }
 
+/** 移動入力を4方向へ変換して返す */
 bool UCmnInputRouter::GetMoveDirFromAxis(const FVector2D& Axis, FIntPoint& OutDir) const
 {
-    // ゲーム移動：Axis2D を 4方向にスナップして返す
     return SnapToCardinal(Axis, OutDir);
 }

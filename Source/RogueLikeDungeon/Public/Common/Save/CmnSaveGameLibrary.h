@@ -10,7 +10,7 @@ class UCmnUserSettingsSaveBase;
 
 /**
  * 共通SaveGameユーティリティ
- * ・ロード/作成/保存の共通処理をまとめる
+ * SaveGameのロードと保存を行う
  */
 UCLASS()
 class ROGUELIKEDUNGEON_API UCmnSaveGameLibrary : public UBlueprintFunctionLibrary
@@ -18,20 +18,25 @@ class ROGUELIKEDUNGEON_API UCmnSaveGameLibrary : public UBlueprintFunctionLibrar
     GENERATED_BODY()
 
 public:
+
     /**
-     * スロットからロード。無ければ新規作成して返す。
-     * @param SaveClass 作成するSaveGameクラス
+     * SaveGameをロードまたは新規作成する
+     *
+     * @param SaveClass SaveGameクラス
      * @param SlotName スロット名
      * @param UserIndex ユーザーIndex
+     * @return ロードまたは新規作成したSaveGame
      */
     UFUNCTION(BlueprintCallable, Category = "Common|Save")
     static UCmnUserSettingsSaveBase* LoadOrCreate(TSubclassOf<UCmnUserSettingsSaveBase> SaveClass, const FString& SlotName, int32 UserIndex);
 
     /**
      * SaveGameを保存する
+     *
      * @param SaveObject 保存対象
      * @param SlotName スロット名
      * @param UserIndex ユーザーIndex
+     * @return 保存成功ならtrue
      */
     UFUNCTION(BlueprintCallable, Category = "Common|Save")
     static bool Save(UCmnUserSettingsSaveBase* SaveObject, const FString& SlotName, int32 UserIndex);

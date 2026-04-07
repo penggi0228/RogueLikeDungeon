@@ -8,28 +8,26 @@
 DEFINE_LOG_CATEGORY_STATIC(LogCmnSettings, Log, All);
 
 // ----- UGameInstanceSubsystem -----
-/**
- * Subsystem初期化
- * ゲーム起動中は常駐する想定なので、初期化時にSaveGameを読み込み、
- * Runtime値と保存済み基準値を揃える
- */
+
+/** 設定管理サブシステムを初期化する */
 void UCmnSettingsSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
     Super::Initialize(Collection);
 
-    LoadInputOptionsInternal(); // SaveGameをロード / 生成してキャッシュ
-    ReadCacheToRuntime();       // キャッシュ → ランタイムへ反映
+    // 入力オプションSaveGameのロードとキャッシュ
+    LoadInputOptionsInternal();
 
-    // 現在ロードされた値を保存済み基準値として記録
+    // キャッシュ値をRuntimeへ反映
+    ReadCacheToRuntime();
+
+    // 現在値を保存済み値として保持
     SavedSettings = RuntimeSettings;
+
+    // 差分状態の更新
     UpdateDirtyFlag();
 }
 
-/**
- * Subsystem終了処理
- * 現時点では明示的な解放対象はないが、将来TimerやDelegate登録などを
- * 追加した場合の解放ポイントとして残しておく
- */
+/** 設定管理サブシステムを終了する */
 void UCmnSettingsSubsystem::Deinitialize()
 {
     Super::Deinitialize();
@@ -37,9 +35,7 @@ void UCmnSettingsSubsystem::Deinitialize()
 
 // ----- Getter -----
 
-/**
- * 未保存の変更があるかどうかを返す
- */
+/** 未保存変更の有無を返す */
 bool UCmnSettingsSubsystem::HasUnsavedChanges() const
 {
     return bHasUnsavedChanges;
@@ -47,83 +43,95 @@ bool UCmnSettingsSubsystem::HasUnsavedChanges() const
 
 // ----- Setter -----
 
-/**
- * 入力オプションの左右反転を更新する
- * 値が変化した場合のみ差分を更新し、登録側へ通知する
- */
+/** カメラ左右反転設定を更新する */
 void UCmnSettingsSubsystem::SetInvertCameraX(bool bValue)
 {
+    // 値が同一の場合は更新しない
     if (RuntimeSettings.bInvertCameraX == bValue)
+    {
         return;
+    }
 
+    // Runtime値を更新
     RuntimeSettings.bInvertCameraX = bValue;
+
+    // 差分状態の更新
     UpdateDirtyFlag();
 
+    // 変更通知
     OnInputSettingsChanged.Broadcast(RuntimeSettings);
 }
 
-/**
- * 入力オプションの上下反転を更新する
- * 値が変化した場合のみ差分を更新し、登録側へ通知する
- */
+/** カメラ上下反転設定を更新する */
 void UCmnSettingsSubsystem::SetInvertCameraY(bool bValue)
 {
+    // 値が同一の場合は更新しない
     if (RuntimeSettings.bInvertCameraY == bValue)
+    {
         return;
+    }
 
+    // Runtime値を更新
     RuntimeSettings.bInvertCameraY = bValue;
+
+    // 差分状態の更新
     UpdateDirtyFlag();
 
+    // 変更通知
     OnInputSettingsChanged.Broadcast(RuntimeSettings);
 }
 
 // ----- 保存操作 -----
 
-/**
- * 現在の値をSaveGameへ保存(適用)する
- * 保存前にRuntime値をキャッシュへ反映し、
- * 保存成功時のみ保存済み基準値を更新する
- */
+/** 入力オプションを保存する */
 bool UCmnSettingsSubsystem::ApplyAndSaveInputOptions()
 {
+    // Runtime値をSaveGameキャッシュへ反映
     WriteRuntimeToCache();
 
+    // SaveGameへ保存
     const bool bSaved = SaveInputOptions();
+
+    // 保存失敗時は処理終了
     if (!bSaved)
     {
         return false;
     }
 
+    // 保存済み値を更新
     SavedSettings = RuntimeSettings;
+
+    // 差分状態の更新
     UpdateDirtyFlag();
 
+    // 変更通知
     OnInputSettingsChanged.Broadcast(RuntimeSettings);
 
     return true;
 }
 
-/**
- * 未保存の変更を破棄してSaveGameを再読み込みする
- * Runtime値を保存済み状態へ戻し、購読側へ再通知する
- */
+/** 入力オプションを再読み込みする */
 void UCmnSettingsSubsystem::ReloadInputOptions()
 {
+    // SaveGameを再ロード
     LoadInputOptionsInternal();
+
+    // キャッシュ値をRuntimeへ反映
     ReadCacheToRuntime();
 
+    // 保存済み値を更新
     SavedSettings = RuntimeSettings;
+
+    // 差分状態の更新
     UpdateDirtyFlag();
 
+    // 変更通知
     OnInputSettingsChanged.Broadcast(RuntimeSettings);
 }
 
 // ----- Save & Load: 入力オプション -----
 
-/**
- * SaveGameをロード / 生成してキャッシュする
- * Runtime値への反映はReadCacheToRuntime()で行う
- * スロットが存在しない場合は新規作成されたオブジェクトを保持する
- */
+/** 入力オプションSaveGameをロードまたは新規作成する */
 void UCmnSettingsSubsystem::LoadInputOptionsInternal()
 {
     CachedInputOptions = Cast<UCmnInputOptionsSave>(
@@ -134,18 +142,18 @@ void UCmnSettingsSubsystem::LoadInputOptionsInternal()
         )
     );
 
+    // SaveGame取得に失敗した場合は警告ログ出力
     if (!CachedInputOptions)
     {
         UE_LOG(LogCmnSettings, Warning,
-            TEXT("LoadInputOptionsInternal: 入力設定SaveGameのロード / 生成に失敗しました。"));
+            TEXT("LoadInputOptionsInternal: 入力設定SaveGameの取得に失敗"));
     }
 }
 
-/**
- * キャッシュからRuntime値へ反映する
- */
+/** SaveGameキャッシュ値をRuntimeへ反映する */
 void UCmnSettingsSubsystem::ReadCacheToRuntime()
 {
+    // キャッシュ未取得の場合は処理しない
     if (!CachedInputOptions)
     {
         return;
@@ -155,12 +163,10 @@ void UCmnSettingsSubsystem::ReadCacheToRuntime()
     RuntimeSettings.bInvertCameraY = CachedInputOptions->bInvertCameraY;
 }
 
-/**
- * Runtime値をキャッシュへ書き戻す
- * 実際の保存はSaveInputOptions()で行う
- */
+/** Runtime値をSaveGameキャッシュへ書き戻す */
 void UCmnSettingsSubsystem::WriteRuntimeToCache()
 {
+    // キャッシュ未取得の場合は処理しない
     if (!CachedInputOptions)
     {
         return;
@@ -170,16 +176,14 @@ void UCmnSettingsSubsystem::WriteRuntimeToCache()
     CachedInputOptions->bInvertCameraY = RuntimeSettings.bInvertCameraY;
 }
 
-/**
- * 入力オプション設定を保存する
- * @return 保存成功ならtrue、失敗ならfalse
- */
+/** 入力オプションを保存する */
 bool UCmnSettingsSubsystem::SaveInputOptions()
 {
+    // キャッシュ未取得の場合は保存失敗
     if (!CachedInputOptions)
     {
         UE_LOG(LogCmnSettings, Warning,
-            TEXT("SaveInputOptions: CachedInputOptionsがnullです。"));
+            TEXT("SaveInputOptions: CachedInputOptionsがnull"));
         return false;
     }
 
@@ -189,18 +193,17 @@ bool UCmnSettingsSubsystem::SaveInputOptions()
         InputOptionsUserIndex
     );
 
+    // 保存失敗時はエラーログ出力
     if (!bResult)
     {
         UE_LOG(LogCmnSettings, Error,
-            TEXT("SaveInputOptions: 入力設定の保存に失敗しました。"));
+            TEXT("SaveInputOptions: 入力設定の保存に失敗"));
     }
 
     return bResult;
 }
 
-/**
- * 保存済みの値と未保存の値の差分を判定する
- */
+/** 未保存変更の差分状態を更新する */
 void UCmnSettingsSubsystem::UpdateDirtyFlag()
 {
     bHasUnsavedChanges = (RuntimeSettings != SavedSettings);

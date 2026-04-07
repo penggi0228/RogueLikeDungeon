@@ -8,21 +8,19 @@
 DEFINE_LOG_CATEGORY_STATIC(LogCmnSave, Log, All);
 
 /**
- * スロットからSaveGameをロードする。
- * 存在すればロード
- * 存在しない/ロード失敗/キャスト失敗時は新規作成
+ * SaveGameをロードまたは新規作成する
  *
- * @param SaveClass 作成対象のSaveGameクラス
- * @param SlotName  スロット名
+ * @param SaveClass SaveGameクラス
+ * @param SlotName スロット名
  * @param UserIndex ユーザーIndex
- * @return 読み込みまたは新規作成したSaveGame(失敗時はnullptr)
+ * @return ロードまたは新規作成したSaveGame
  */
 UCmnUserSettingsSaveBase* UCmnSaveGameLibrary::LoadOrCreate(
     TSubclassOf<UCmnUserSettingsSaveBase> SaveClass,
     const FString& SlotName,
     int32 UserIndex)
 {
-    // SaveClassが無効なら何もしない
+    // SaveGameクラスが無効な場合はnullptrを返す
     if (!*SaveClass)
     {
         UE_LOG(LogCmnSave, Warning, TEXT("LoadOrCreate: SaveClass is invalid. Slot=%s"), *SlotName);
@@ -31,15 +29,15 @@ UCmnUserSettingsSaveBase* UCmnSaveGameLibrary::LoadOrCreate(
 
     UCmnUserSettingsSaveBase* Result = nullptr;
 
-    // 既存スロットが存在する場合はロード試行
+    // 既存スロットがある場合はロードを試行
     if (UGameplayStatics::DoesSaveGameExist(SlotName, UserIndex))
     {
         USaveGame* Loaded = UGameplayStatics::LoadGameFromSlot(SlotName, UserIndex);
 
-        // ロードが成功している前提で、想定クラスへキャスト
+        // ロードしたSaveGameを共通ベース型へ変換
         Result = Cast<UCmnUserSettingsSaveBase>(Loaded);
 
-        // ロード自体はできたが、型が違う(またはクラス差し替え後)などでキャストに失敗した場合
+        // ロード済みオブジェクトの型が一致しない場合は警告を出す
         if (Loaded && !Result)
         {
             UE_LOG(LogCmnSave, Warning,
@@ -50,7 +48,7 @@ UCmnUserSettingsSaveBase* UCmnSaveGameLibrary::LoadOrCreate(
         }
     }
 
-    // ロード失敗/スロット無し/キャスト失敗の場合は新規作成
+    // ロードできなかった場合は新規作成
     if (!Result)
     {
         Result = Cast<UCmnUserSettingsSaveBase>(UGameplayStatics::CreateSaveGameObject(SaveClass));
@@ -68,20 +66,19 @@ UCmnUserSettingsSaveBase* UCmnSaveGameLibrary::LoadOrCreate(
 }
 
 /**
- * SaveGameをスロットへ保存する。
- * ・保存前にSavedAtを更新する
+ * SaveGameを保存する
  *
  * @param SaveObject 保存対象
- * @param SlotName   スロット名
- * @param UserIndex  ユーザーIndex
- * @return 保存成功時true
+ * @param SlotName スロット名
+ * @param UserIndex ユーザーIndex
+ * @return 保存成功ならtrue
  */
 bool UCmnSaveGameLibrary::Save(
     UCmnUserSettingsSaveBase* SaveObject,
     const FString& SlotName,
     int32 UserIndex)
 {
-    // 保存対象が無効なら失敗
+    // 保存対象が無効な場合は失敗として返す
     if (!SaveObject)
     {
         UE_LOG(LogCmnSave, Warning, TEXT("Save: SaveObject is null. Slot=%s"), *SlotName);

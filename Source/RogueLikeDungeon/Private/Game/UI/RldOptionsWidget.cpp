@@ -9,62 +9,55 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogRldOptions, Log, All);
 
-/**
- * ゲーム内オプション画面ロジック部分
- * 初期化時のイベントBind
- */
+/** 初期化時のイベント登録を行う */
 void URldOptionsWidget::NativeOnInitialized()
 {
     Super::NativeOnInitialized();
 
-    /* カメラ左右反転 */
+    // カメラ左右反転チェックボックス取得時はイベント登録
     if (CheckBoxInvertX)
     {
         CheckBoxInvertX->OnCheckStateChanged.AddDynamic(this, &URldOptionsWidget::OnInvertXChanged);
     }
 
-    /* カメラ上下反転 */
+    // カメラ上下反転チェックボックス取得時はイベント登録
     if (CheckBoxInvertY)
     {
         CheckBoxInvertY->OnCheckStateChanged.AddDynamic(this, &URldOptionsWidget::OnInvertYChanged);
     }
 
-    /* 適用ボタン */
+    // 適用ボタン取得時はイベント登録
     if (ButtonApply)
     {
         ButtonApply->OnClicked.AddDynamic(this, &URldOptionsWidget::OnApplyClicked);
     }
 
-    /* キャンセルボタン */
+    // キャンセルボタン取得時はイベント登録
     if (ButtonCancel)
     {
         ButtonCancel->OnClicked.AddDynamic(this, &URldOptionsWidget::OnCancelClicked);
     }
 
-    /* 閉じるボタン */
+    // 閉じるボタン取得時はイベント登録
     if (ButtonClose)
     {
         ButtonClose->OnClicked.AddDynamic(this, &URldOptionsWidget::OnCloseClicked);
     }
 }
 
-
-/**
- * ゲーム内オプション画面ロジック部分のコンストラクタ
- * 現在の設定をUIへ反映
- * 適用ボタンの状態更新
- */
+/** 構築時に設定値とボタン状態を反映する */
 void URldOptionsWidget::NativeConstruct()
 {
     Super::NativeConstruct();
 
-    RefreshUIFromSettings();    // Subsystemの現在値をUIへ反映
-    UpdateApplyButtonState();  //  適用ボタンの状態更新
+    // 現在の設定をUIへ反映
+    RefreshUIFromSettings();
+
+    // 適用ボタンの状態を更新
+    UpdateApplyButtonState();
 }
 
-/**
- * Subsystem取得
- */
+/** SettingsSubsystemを取得する */
 UCmnSettingsSubsystem* URldOptionsWidget::GetSettingsSubsystem() const
 {
     if (!GetGameInstance())
@@ -75,33 +68,31 @@ UCmnSettingsSubsystem* URldOptionsWidget::GetSettingsSubsystem() const
     return GetGameInstance()->GetSubsystem<UCmnSettingsSubsystem>();
 }
 
-/**
- * Subsystemの現在値をUIへ反映する
- */
+/** 現在の設定をUIへ反映する */
 void URldOptionsWidget::RefreshUIFromSettings()
 {
     UCmnSettingsSubsystem* Settings = GetSettingsSubsystem();
+
+    // SettingsSubsystem未取得時は反映しない
     if (!Settings)
     {
         return;
     }
 
-    /* カメラ左右反転 */
+    // カメラ左右反転チェックボックス取得時は設定値を反映
     if (CheckBoxInvertX)
     {
         CheckBoxInvertX->SetIsChecked(Settings->GetInvertCameraX());
     }
 
-    /* カメラ上下反転 */
+    // カメラ上下反転チェックボックス取得時は設定値を反映
     if (CheckBoxInvertY)
     {
         CheckBoxInvertY->SetIsChecked(Settings->GetInvertCameraY());
     }
 }
 
-/**
- * 左右反転チェック変更
- */
+/** カメラ左右反転チェック変更時の処理を行う */
 void URldOptionsWidget::OnInvertXChanged(bool bIsChecked)
 {
     if (UCmnSettingsSubsystem* Settings = GetSettingsSubsystem())
@@ -109,15 +100,13 @@ void URldOptionsWidget::OnInvertXChanged(bool bIsChecked)
         Settings->SetInvertCameraX(bIsChecked);
     }
 
-    UE_LOG(LogRldOptions, Log, TEXT("InvertX Changed: %d"), bIsChecked ? 1 : 0);
+    UE_LOG(LogRldOptions, Log, TEXT("OnInvertXChanged: 値=%d"), bIsChecked ? 1 : 0);
 
-    // 適用ボタンの状態更新
+    // 適用ボタンの状態を更新
     UpdateApplyButtonState();
 }
 
-/**
- * 上下反転チェック変更
- */
+/** カメラ上下反転チェック変更時の処理を行う */
 void URldOptionsWidget::OnInvertYChanged(bool bIsChecked)
 {
     if (UCmnSettingsSubsystem* Settings = GetSettingsSubsystem())
@@ -125,15 +114,13 @@ void URldOptionsWidget::OnInvertYChanged(bool bIsChecked)
         Settings->SetInvertCameraY(bIsChecked);
     }
 
-    UE_LOG(LogRldOptions, Log, TEXT("InvertY Changed: %d"), bIsChecked ? 1 : 0);
+    UE_LOG(LogRldOptions, Log, TEXT("OnInvertYChanged: 値=%d"), bIsChecked ? 1 : 0);
 
-    // 適用ボタンの状態更新
+    // 適用ボタンの状態を更新
     UpdateApplyButtonState();
 }
 
-/**
- * 適用ボタンクリック
- */
+/** 適用ボタンクリック時の処理を行う */
 void URldOptionsWidget::OnApplyClicked()
 {
     if (UCmnSettingsSubsystem* Settings = GetSettingsSubsystem())
@@ -141,13 +128,13 @@ void URldOptionsWidget::OnApplyClicked()
         Settings->ApplyAndSaveInputOptions();
     }
 
-    UE_LOG(LogRldOptions, Log, TEXT("Apply Clicked"));
+    UE_LOG(LogRldOptions, Log, TEXT("OnApplyClicked: 適用ボタン押下"));
+
+    // 適用後の状態を反映
+    UpdateApplyButtonState();
 }
 
-/**
- * キャンセルボタンクリック
- * ・保存せず、保存済み状態に戻す
- */
+/** キャンセルボタンクリック時の処理を行う */
 void URldOptionsWidget::OnCancelClicked()
 {
     if (UCmnSettingsSubsystem* Settings = GetSettingsSubsystem())
@@ -155,41 +142,42 @@ void URldOptionsWidget::OnCancelClicked()
         Settings->ReloadInputOptions();
     }
 
+    // 保存済みの設定値をUIへ再反映
     RefreshUIFromSettings();
 
-    UE_LOG(LogRldOptions, Log, TEXT("キャンセルボタンがクリックされました"));
+    // 適用ボタンの状態を更新
+    UpdateApplyButtonState();
+
+    UE_LOG(LogRldOptions, Log, TEXT("OnCancelClicked: キャンセルボタン押下"));
 }
 
-
-/**
- * 閉じるボタンクリック
- */
+/** 閉じるボタンクリック時の処理を行う */
 void URldOptionsWidget::OnCloseClicked()
 {
     UCmnSettingsSubsystem* Settings = GetSettingsSubsystem();
+
+    // SettingsSubsystem未取得時はそのまま閉じる
     if (!Settings)
     {
         RemoveFromParent();
         return;
     }
 
+    // 未保存変更がない場合はそのまま閉じる
     if (!Settings->HasUnsavedChanges())
     {
         RemoveFromParent();
         return;
     }
-    
-    // 未保存あり → 簡易警告
-    //UE_LOG(LogRldOptions, Warning, TEXT("変更が保存されていません"));
 
-    // ★実務ではここで確認ダイアログを出す
+    // 未保存変更がある場合は確認処理を行う想定
+    // UE_LOG(LogRldOptions, Warning, TEXT("OnCloseClicked: 変更が保存されていません"));
 }
 
-/**
- * 適用ボタンの状態更新
- */
+/** 適用ボタンの状態を更新する */
 void URldOptionsWidget::UpdateApplyButtonState()
 {
+    // 適用ボタン未取得時は更新しない
     if (!ButtonApply)
     {
         return;
