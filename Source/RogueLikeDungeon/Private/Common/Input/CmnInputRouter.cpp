@@ -8,6 +8,8 @@
 #include "InputMappingContext.h"
 #include "TimerManager.h"
 
+DEFINE_LOG_CATEGORY_STATIC(LogCmnInputRouter, Log, All);
+
 /** PlayerControllerとEnhancedInputSubsystemを設定する */
 void UCmnInputRouter::Initialize(APlayerController* InPC, UEnhancedInputLocalPlayerSubsystem* InSubsys)
 {
@@ -25,22 +27,52 @@ void UCmnInputRouter::ApplyConfig(const UCmnInputConfig* Config)
         IMC_UI = nullptr;
 
         IA_Move = nullptr;
+        IA_Wait = nullptr;
         IA_CameraLook = nullptr;
         IA_CameraZoom = nullptr;
+
         IA_UI_Direction = nullptr;
+        IA_UI_Confirm = nullptr;
+        IA_UI_Close = nullptr;
         IA_UI_Scroll = nullptr;
+
+        IA_DebugCommandPrefix = nullptr;
+        IA_DebugCommandKeyboard1 = nullptr;
+        IA_DebugCommandKeyboard2 = nullptr;
+        IA_DebugCommandKeyboard3 = nullptr;
+        IA_DebugCommandKeyboard4 = nullptr;
+        IA_DebugCommandKeyboard5 = nullptr;
+        IA_DebugCommandGamepad1 = nullptr;
+        IA_DebugCommandGamepad2 = nullptr;
+
         return;
     }
 
-    // 入力アセット参照を反映
+    // InputMappingContext参照を反映
     IMC_Game = Config->IMC_Game;
     IMC_UI = Config->IMC_UI;
 
+    // ゲーム入力アセット参照を反映
     IA_Move = Config->IA_Move;
+    IA_Wait = Config->IA_Wait;
     IA_CameraLook = Config->IA_CameraLook;
     IA_CameraZoom = Config->IA_CameraZoom;
+
+    // UI入力アセット参照を反映
     IA_UI_Direction = Config->IA_UI_Direction;
+    IA_UI_Confirm = Config->IA_UI_Confirm;
+    IA_UI_Close = Config->IA_UI_Close;
     IA_UI_Scroll = Config->IA_UI_Scroll;
+
+    // デバッグ入力アセット参照を反映
+    IA_DebugCommandPrefix = Config->IA_DebugCommandPrefix;
+    IA_DebugCommandKeyboard1 = Config->IA_DebugCommandKeyboard1;
+    IA_DebugCommandKeyboard2 = Config->IA_DebugCommandKeyboard2;
+    IA_DebugCommandKeyboard3 = Config->IA_DebugCommandKeyboard3;
+    IA_DebugCommandKeyboard4 = Config->IA_DebugCommandKeyboard4;
+    IA_DebugCommandKeyboard5 = Config->IA_DebugCommandKeyboard5;
+    IA_DebugCommandGamepad1 = Config->IA_DebugCommandGamepad1;
+    IA_DebugCommandGamepad2 = Config->IA_DebugCommandGamepad2;
 
     // 入力設定値を反映
     UIRepeatDelay = Config->UIRepeatDelay;
@@ -115,7 +147,7 @@ void UCmnInputRouter::ApplyMappingContexts(bool bEnableUI)
 {
     if (!Subsys)
     {
-        UE_LOG(LogTemp, Warning, TEXT("ApplyMappingContexts: Subsys NULL"));
+        UE_LOG(LogCmnInputRouter, Warning, TEXT("ApplyMappingContexts: Subsys NULL"));
         return;
     }
 
@@ -134,6 +166,7 @@ void UCmnInputRouter::ApplyMappingContexts(bool bEnableUI)
     }
 
     // ゲーム用IMCを適用
+    // デバッグコマンドはゲーム中に受け付けるためGame側へ含める想定
     if (IMC_Game)
     {
         Subsys->AddMappingContext(IMC_Game, 0);
@@ -146,7 +179,7 @@ void UCmnInputRouter::ApplyMappingContexts(bool bEnableUI)
     }
 
     UE_LOG(
-        LogTemp,
+        LogCmnInputRouter,
         Warning,
         TEXT("ApplyMappingContexts: GameIMC=%s UIIMC=%s EnableUI=%d"),
         IMC_Game ? *IMC_Game->GetName() : TEXT("NULL"),

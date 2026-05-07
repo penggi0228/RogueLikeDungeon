@@ -4,7 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Common/Debug/CmnDebugDrawTypes.h"
+#include "Common/ProcGen/CmnGridLayoutTypes.h"
 #include "Game/Floor/RldFloorDefinition.h"
+#include "Game/Floor/RldFloorGenerator.h"
 #include "RldFloorManager.generated.h"
 
 class UDataTable;
@@ -32,14 +35,13 @@ protected:
     // ----- AActor -----
 
     virtual void BeginPlay() override;
+    virtual void Tick(float deltaSeconds) override;
 
 public:
 
     // ----- フロア進行 -----
 
-    /**
-     * 現在のフロア番号でフロア開始処理を行う
-     */
+    /** 現在のフロア番号でフロア開始処理を行う */
     UFUNCTION(BlueprintCallable, Category = "Rld|Floor")
     void StartFloor();
 
@@ -57,6 +59,14 @@ public:
 
 public:
 
+    // ----- デバッグ描画 -----
+
+    /** 現在フロアのデバッグ描画を行う */
+    UFUNCTION(BlueprintCallable, Category = "Rld|Floor|Debug")
+    void DrawDebugFloorState() const;
+
+public:
+
     // ----- Getter -----
 
     /** 現在のフロア番号を取得する */
@@ -71,6 +81,13 @@ public:
     FRldFloorDefinition GetCurrentFloorDefinition() const
     {
         return currentFloorDefinition;
+    }
+
+    /** 現在フロアの生成結果を取得する */
+    UFUNCTION(BlueprintPure, Category = "Rld|Floor")
+    FCmnGridLayoutBuildResult GetCurrentFloorLayout() const
+    {
+        return currentFloorLayout;
     }
 
 public:
@@ -112,10 +129,42 @@ private:
 
 private:
 
+    // ----- フロア生成 -----
+
+    /**
+     * 現在のフロア定義からレイアウトを生成する
+     *
+     * @param outFloorLayout 生成結果
+     * @return 生成成功ならtrue
+     */
+    bool TryBuildFloorLayout(FCmnGridLayoutBuildResult& outFloorLayout);
+
+private:
+
     // ----- フロア反映 -----
 
-    /** フロア状態をグリッドとプレイヤーと敵へ反映する */
+    /** フロア状態をグリッドとプレイヤーへ反映する */
     void ApplyFloorState();
+
+private:
+
+    // ----- デバッグ描画 -----
+
+    /** フロアデバッグ描画の凡例をログ出力する */
+    void LogDebugDrawLegend();
+
+    /** フロアデバッグ描画を更新する */
+    void UpdateContinuousDebugDraw(float deltaSeconds);
+
+    /** フロア常時デバッグ描画が有効か判定する */
+    bool ShouldDrawContinuousDebug() const;
+
+    /**
+     * 現在フロアのデバッグ描画を行う
+     *
+     * @param bOutputLog 描画ログを出力するか
+     */
+    void DrawDebugFloorStateInternal(bool bOutputLog) const;
 
 private:
 
@@ -156,4 +205,60 @@ private:
     // 現在フロアの定義
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Rld|Floor", meta = (AllowPrivateAccess = "true"))
     FRldFloorDefinition currentFloorDefinition;
+
+    // 現在フロアの生成結果
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Rld|Floor", meta = (AllowPrivateAccess = "true"))
+    FCmnGridLayoutBuildResult currentFloorLayout;
+
+private:
+
+    // ----- フロア生成器 -----
+
+    FRldFloorGenerator floorGenerator;
+
+private:
+
+    // ----- デバッグ描画設定 -----
+
+    // フロア反映時に自動でデバッグ描画するか
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rld|Floor|Debug", meta = (AllowPrivateAccess = "true"))
+    bool bDrawDebugOnApplyFloorState = true;
+
+    // チェックON中に短時間DebugDrawを定期再描画するか
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rld|Floor|Debug", meta = (AllowPrivateAccess = "true"))
+    bool bEnableContinuousDebugDraw = true;
+
+    // 常時デバッグ描画の再描画間隔
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rld|Floor|Debug", meta = (AllowPrivateAccess = "true", ClampMin = "0.01"))
+    float continuousDebugDrawInterval = 0.10f;
+
+    // 部屋外枠を描画するか
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rld|Floor|Debug", meta = (AllowPrivateAccess = "true"))
+    bool bDrawRoomBounds = true;
+
+    // 開始位置を描画するか
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rld|Floor|Debug", meta = (AllowPrivateAccess = "true"))
+    bool bDrawPlayerStartCell = true;
+
+    // 階段位置を強調描画するか
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rld|Floor|Debug", meta = (AllowPrivateAccess = "true"))
+    bool bDrawStairsHighlightCell = true;
+
+    // 部屋外枠描画設定
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rld|Floor|Debug", meta = (AllowPrivateAccess = "true"))
+    FCmnDebugDrawStyle roomBoundsDebugStyle;
+
+    // 開始位置描画設定
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rld|Floor|Debug", meta = (AllowPrivateAccess = "true"))
+    FCmnDebugDrawStyle playerStartDebugStyle;
+
+    // 階段強調描画設定
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rld|Floor|Debug", meta = (AllowPrivateAccess = "true"))
+    FCmnDebugDrawStyle stairsHighlightDebugStyle;
+
+    // 常時デバッグ描画の経過時間
+    float continuousDebugDrawElapsed = 0.0f;
+
+    // デバッグ描画凡例を出力済みか
+    bool bDebugLegendLogged = false;
 };

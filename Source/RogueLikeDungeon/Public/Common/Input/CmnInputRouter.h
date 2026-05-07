@@ -38,9 +38,13 @@ public:
 
     /** 現在の入力モードを取得する */
     UFUNCTION(BlueprintCallable, Category = "Common|Input")
-    ECmnInputMode GetInputMode() const { return CurrentMode; }
+    ECmnInputMode GetInputMode() const
+    {
+        return CurrentMode;
+    }
 
-    // モード判定
+    // ----- モード判定 -----
+
     bool IsGameMode() const { return CurrentMode == ECmnInputMode::Game; }        // ゲームモード
     bool IsMenuMode() const { return CurrentMode == ECmnInputMode::Menu; }        // メニューモード
     bool IsDialogMode() const { return CurrentMode == ECmnInputMode::Dialog; }    // ダイアログモード
@@ -80,35 +84,93 @@ public:
 
 public:
 
-    // ----- Input Assets -----
+    // ----- InputMappingContext -----
 
     // ゲーム操作用IMC
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common|Input")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common|Input|IMC")
     TObjectPtr<UInputMappingContext> IMC_Game = nullptr;
 
     // UI操作用IMC
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common|Input")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common|Input|IMC")
     TObjectPtr<UInputMappingContext> IMC_UI = nullptr;
 
+public:
+
+    // ----- Game InputAction -----
+
     // ゲーム移動用InputAction
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common|Input")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common|Input|IA|Game")
     TObjectPtr<UInputAction> IA_Move = nullptr;
 
+    // 待機用InputAction
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common|Input|IA|Game")
+    TObjectPtr<UInputAction> IA_Wait = nullptr;
+
     // カメラ視点操作用InputAction
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common|Input")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common|Input|IA|Game")
     TObjectPtr<UInputAction> IA_CameraLook = nullptr;
 
     // カメラズーム操作用InputAction
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common|Input")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common|Input|IA|Game")
     TObjectPtr<UInputAction> IA_CameraZoom = nullptr;
 
+public:
+
+    // ----- UI InputAction -----
+
     // UI方向入力用InputAction
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common|Input")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common|Input|IA|UI")
     TObjectPtr<UInputAction> IA_UI_Direction = nullptr;
 
+    // UI決定用InputAction
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common|Input|IA|UI")
+    TObjectPtr<UInputAction> IA_UI_Confirm = nullptr;
+
+    // UIクローズ用InputAction
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common|Input|IA|UI")
+    TObjectPtr<UInputAction> IA_UI_Close = nullptr;
+
     // UIスクロール用InputAction
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common|Input")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common|Input|IA|UI")
     TObjectPtr<UInputAction> IA_UI_Scroll = nullptr;
+
+public:
+
+    // ----- Debug Command InputAction -----
+
+    // デバッグコマンド開始用InputAction
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common|Input|IA|Debug")
+    TObjectPtr<UInputAction> IA_DebugCommandPrefix = nullptr;
+
+    // キーボード用デバッグコマンド1InputAction
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common|Input|IA|Debug|Keyboard")
+    TObjectPtr<UInputAction> IA_DebugCommandKeyboard1 = nullptr;
+
+    // キーボード用デバッグコマンド2InputAction
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common|Input|IA|Debug|Keyboard")
+    TObjectPtr<UInputAction> IA_DebugCommandKeyboard2 = nullptr;
+
+    // キーボード用デバッグコマンド3InputAction
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common|Input|IA|Debug|Keyboard")
+    TObjectPtr<UInputAction> IA_DebugCommandKeyboard3 = nullptr;
+
+    // キーボード用デバッグコマンド4InputAction
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common|Input|IA|Debug|Keyboard")
+    TObjectPtr<UInputAction> IA_DebugCommandKeyboard4 = nullptr;
+
+    // キーボード用デバッグコマンド5InputAction
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common|Input|IA|Debug|Keyboard")
+    TObjectPtr<UInputAction> IA_DebugCommandKeyboard5 = nullptr;
+
+    // ゲームパッド用デバッグコマンド1InputAction
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common|Input|IA|Debug|Gamepad")
+    TObjectPtr<UInputAction> IA_DebugCommandGamepad1 = nullptr;
+
+    // ゲームパッド用デバッグコマンド2InputAction
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common|Input|IA|Debug|Gamepad")
+    TObjectPtr<UInputAction> IA_DebugCommandGamepad2 = nullptr;
+
+public:
 
     // ----- Parameters -----
 

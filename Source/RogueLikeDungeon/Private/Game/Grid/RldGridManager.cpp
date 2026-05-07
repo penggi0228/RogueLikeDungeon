@@ -2,6 +2,8 @@
 
 #include "Game/Grid/RldGridManager.h"
 
+#include "Common/Debug/CmnDebugCategories.h"
+#include "Common/Debug/CmnDebugWorldSubsystem.h"
 #include "Common/Grid/CmnGridCoordFunctionLibrary.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogRldGridManager, Log, All);
@@ -9,7 +11,28 @@ DEFINE_LOG_CATEGORY_STATIC(LogRldGridManager, Log, All);
 /** コンストラクタ */
 ARldGridManager::ARldGridManager()
 {
-    PrimaryActorTick.bCanEverTick = false;
+    PrimaryActorTick.bCanEverTick = true;
+
+    floorDebugStyle.drawColor = FColor::Green;
+    floorDebugStyle.bPersistentLines = false;
+    floorDebugStyle.duration = 0.15f;
+    floorDebugStyle.lineThickness = 1.5f;
+    floorDebugStyle.zOffset = 5.0f;
+    floorDebugStyle.sizeScale = 0.18f;
+
+    wallDebugStyle.drawColor = FColor::Red;
+    wallDebugStyle.bPersistentLines = false;
+    wallDebugStyle.duration = 0.15f;
+    wallDebugStyle.lineThickness = 1.5f;
+    wallDebugStyle.zOffset = 25.0f;
+    wallDebugStyle.sizeScale = 0.45f;
+
+    stairsDebugStyle.drawColor = FColor::Blue;
+    stairsDebugStyle.bPersistentLines = false;
+    stairsDebugStyle.duration = 0.15f;
+    stairsDebugStyle.lineThickness = 1.5f;
+    stairsDebugStyle.zOffset = 45.0f;
+    stairsDebugStyle.sizeScale = 0.30f;
 }
 
 /** 開始時処理 */
@@ -18,41 +41,58 @@ void ARldGridManager::BeginPlay()
     Super::BeginPlay();
 }
 
-/** フロア定義を現在のグリッド状態へ反映する */
-void ARldGridManager::ApplyFloorDefinition(const FRldFloorDefinition& floorDefinition)
+/** 毎フレーム処理 */
+void ARldGridManager::Tick(float deltaSeconds)
 {
-    gridWidth = FMath::Max(1, floorDefinition.gridWidth);
-    gridHeight = FMath::Max(1, floorDefinition.gridHeight);
-    gridDefinition = floorDefinition.gridDefinition;
-    wallCells = floorDefinition.wallCells;
-    stairsGridCoord = floorDefinition.stairsGridCoord;
-    bGenerateOuterWallsOnBeginPlay = floorDefinition.bGenerateOuterWalls;
+    Super::Tick(deltaSeconds);
 
-    // 占有情報はフロア反映時にクリア
+    UpdateContinuousDebugDraw(deltaSeconds);
+}
+
+/** フロア定義と生成結果を現在のグリッド状態へ反映する */
+void ARldGridManager::ApplyFloorLayout(
+    const FRldFloorDefinition& floorDefinition,
+    const FCmnGridLayoutBuildResult& floorLayout
+)
+{
+    gridWidth = FMath::Max(1, floorLayout.gridWidth);
+    gridHeight = FMath::Max(1, floorLayout.gridHeight);
+    gridDefinition = floorDefinition.gridDefinition;
+
+    floorCells = floorLayout.floorCells;
+    wallCells = floorLayout.wallCells;
+    stairsGridCoord = floorLayout.stairsGridCoord;
+
+    RebuildCellSets();
+
+    // フロア反映時は占有情報を初期化
     occupantMap.Empty();
 
-    // 必要時は外周壁を自動生成
-    if (bGenerateOuterWallsOnBeginPlay)
-    {
-        GenerateOuterWallCells();
-    }
+    // 常時デバッグ描画の状態を初期化
+    continuousDebugDrawElapsed = 0.0f;
+    bDebugLegendLogged = false;
 
     UE_LOG(
         LogRldGridManager,
         Log,
-        TEXT("ApplyFloorDefinition: グリッドサイズ=(%d,%d) 壁数=%d 階段座標=(%d,%d) 外周壁自動生成=%d"),
+        TEXT("ApplyFloorLayout: グリッドサイズ=(%d,%d) 床数=%d 壁数=%d 階段座標=(%d,%d)"),
         gridWidth,
         gridHeight,
+        floorCells.Num(),
         wallCells.Num(),
         stairsGridCoord.X,
-        stairsGridCoord.Y,
-        bGenerateOuterWallsOnBeginPlay ? 1 : 0
+        stairsGridCoord.Y
     );
+
+    // フロア反映直後の手動描画としてログありで描画する
+    if (bDrawDebugOnApplyFloorLayout)
+    {
+        DrawDebugGridState();
+        LogDebugDrawLegend();
+    }
 }
 
-/**
- * 指定グリッド座標が有効範囲内か判定する
- */
+/** 指定グリッド座標が有効範囲内か判定する */
 bool ARldGridManager::IsInsideGrid(const FIntPoint& gridCoord) const
 {
     const bool bIsInsideX = (gridCoord.X >= 0) && (gridCoord.X < gridWidth);
@@ -73,12 +113,27 @@ bool ARldGridManager::IsInsideGrid(const FIntPoint& gridCoord) const
     return bIsInsideGrid;
 }
 
-/**
- * 指定グリッド座標が壁マスか判定する
- */
+/** 指定グリッド座標が床マスか判定する */
+bool ARldGridManager::IsFloorCell(const FIntPoint& gridCoord) const
+{
+    const bool bIsFloor = floorCellSet.Contains(gridCoord);
+
+    UE_LOG(
+        LogRldGridManager,
+        Verbose,
+        TEXT("IsFloorCell: グリッド座標=(%d,%d) 判定結果=%d"),
+        gridCoord.X,
+        gridCoord.Y,
+        bIsFloor ? 1 : 0
+    );
+
+    return bIsFloor;
+}
+
+/** 指定グリッド座標が壁マスか判定する */
 bool ARldGridManager::IsWallCell(const FIntPoint& gridCoord) const
 {
-    const bool bIsWallCell = wallCells.Contains(gridCoord);
+    const bool bIsWallCell = wallCellSet.Contains(gridCoord);
 
     UE_LOG(
         LogRldGridManager,
@@ -92,9 +147,7 @@ bool ARldGridManager::IsWallCell(const FIntPoint& gridCoord) const
     return bIsWallCell;
 }
 
-/**
- * 指定グリッド座標が階段マスか判定する
- */
+/** 指定グリッド座標が階段マスか判定する */
 bool ARldGridManager::IsStairsCell(const FIntPoint& gridCoord) const
 {
     const bool bIsStairsCell = (gridCoord == stairsGridCoord);
@@ -113,9 +166,7 @@ bool ARldGridManager::IsStairsCell(const FIntPoint& gridCoord) const
     return bIsStairsCell;
 }
 
-/**
- * 指定グリッド座標が占有されているか判定する
- */
+/** 指定グリッド座標が占有されているか判定する */
 bool ARldGridManager::IsOccupied(const FIntPoint& gridCoord) const
 {
     const TWeakObjectPtr<AActor>* foundActor = occupantMap.Find(gridCoord);
@@ -133,9 +184,7 @@ bool ARldGridManager::IsOccupied(const FIntPoint& gridCoord) const
     return bIsOccupied;
 }
 
-/**
- * 指定グリッド座標へ通行可能か判定する
- */
+/** 指定グリッド座標へ通行可能か判定する */
 bool ARldGridManager::IsWalkable(const FIntPoint& gridCoord) const
 {
     if (!IsInsideGrid(gridCoord))
@@ -150,12 +199,12 @@ bool ARldGridManager::IsWalkable(const FIntPoint& gridCoord) const
         return false;
     }
 
-    if (IsWallCell(gridCoord))
+    if (!IsFloorCell(gridCoord))
     {
         UE_LOG(
             LogRldGridManager,
             Verbose,
-            TEXT("IsWalkable: グリッド座標=(%d,%d) 判定結果=0 理由=壁マス"),
+            TEXT("IsWalkable: グリッド座標=(%d,%d) 判定結果=0 理由=床マスではない"),
             gridCoord.X,
             gridCoord.Y
         );
@@ -185,9 +234,7 @@ bool ARldGridManager::IsWalkable(const FIntPoint& gridCoord) const
     return true;
 }
 
-/**
- * 指定グリッド座標の占有Actorを取得する
- */
+/** 指定グリッド座標の占有Actorを取得する */
 AActor* ARldGridManager::GetOccupyingActor(const FIntPoint& gridCoord) const
 {
     const TWeakObjectPtr<AActor>* foundActor = occupantMap.Find(gridCoord);
@@ -200,9 +247,7 @@ AActor* ARldGridManager::GetOccupyingActor(const FIntPoint& gridCoord) const
     return foundActor->Get();
 }
 
-/**
- * グリッド座標へ占有Actorを登録する
- */
+/** グリッド座標へ占有Actorを登録する */
 bool ARldGridManager::RegisterOccupant(const FIntPoint& gridCoord, AActor* occupantActor)
 {
     if (!occupantActor)
@@ -217,9 +262,9 @@ bool ARldGridManager::RegisterOccupant(const FIntPoint& gridCoord, AActor* occup
         return false;
     }
 
-    if (IsWallCell(gridCoord))
+    if (!IsFloorCell(gridCoord))
     {
-        UE_LOG(LogRldGridManager, Warning, TEXT("RegisterOccupant: 壁マスのため登録しません グリッド座標=(%d,%d)"), gridCoord.X, gridCoord.Y);
+        UE_LOG(LogRldGridManager, Warning, TEXT("RegisterOccupant: 床マスではないため登録しません グリッド座標=(%d,%d)"), gridCoord.X, gridCoord.Y);
         return false;
     }
 
@@ -243,9 +288,7 @@ bool ARldGridManager::RegisterOccupant(const FIntPoint& gridCoord, AActor* occup
     return true;
 }
 
-/**
- * グリッド座標から占有Actorを解除する
- */
+/** グリッド座標から占有Actorを解除する */
 bool ARldGridManager::UnregisterOccupant(const FIntPoint& gridCoord, AActor* occupantActor)
 {
     if (!occupantActor)
@@ -282,9 +325,7 @@ bool ARldGridManager::UnregisterOccupant(const FIntPoint& gridCoord, AActor* occ
     return true;
 }
 
-/**
- * 占有Actorを別グリッド座標へ移動する
- */
+/** 占有Actorを別グリッド座標へ移動する */
 bool ARldGridManager::MoveOccupant(const FIntPoint& fromGridCoord, const FIntPoint& toGridCoord, AActor* occupantActor)
 {
     if (!occupantActor)
@@ -307,9 +348,9 @@ bool ARldGridManager::MoveOccupant(const FIntPoint& fromGridCoord, const FIntPoi
         return false;
     }
 
-    if (IsWallCell(toGridCoord))
+    if (!IsFloorCell(toGridCoord))
     {
-        UE_LOG(LogRldGridManager, Warning, TEXT("MoveOccupant: 移動先が壁マスのため移動しません 移動先=(%d,%d)"), toGridCoord.X, toGridCoord.Y);
+        UE_LOG(LogRldGridManager, Warning, TEXT("MoveOccupant: 移動先が床マスではないため移動しません 移動先=(%d,%d)"), toGridCoord.X, toGridCoord.Y);
         return false;
     }
 
@@ -351,9 +392,7 @@ void ARldGridManager::ClearAllOccupants()
     );
 }
 
-/**
- * グリッド座標をワールド座標へ変換する
- */
+/** グリッド座標をワールド座標へ変換する */
 FVector ARldGridManager::GridToWorld(const FIntPoint& gridCoord) const
 {
     const FVector worldLocation = UCmnGridCoordFunctionLibrary::GridToWorld(gridDefinition, gridCoord);
@@ -372,9 +411,7 @@ FVector ARldGridManager::GridToWorld(const FIntPoint& gridCoord) const
     return worldLocation;
 }
 
-/**
- * ワールド座標をグリッド座標へ変換する
- */
+/** ワールド座標をグリッド座標へ変換する */
 FIntPoint ARldGridManager::WorldToGrid(const FVector& worldLocation) const
 {
     const FIntPoint gridCoord = UCmnGridCoordFunctionLibrary::WorldToGrid(gridDefinition, worldLocation);
@@ -393,9 +430,40 @@ FIntPoint ARldGridManager::WorldToGrid(const FVector& worldLocation) const
     return gridCoord;
 }
 
-/**
- * 階段マス座標を設定する
- */
+/** 現在のフロア状態をデバッグ描画する */
+void ARldGridManager::DrawDebugGridState() const
+{
+    DrawDebugGridStateInternal(true);
+}
+
+/** デバッグ描画凡例をログ出力する */
+void ARldGridManager::LogDebugDrawLegend()
+{
+    if (bDebugLegendLogged)
+    {
+        return;
+    }
+
+    bDebugLegendLogged = true;
+
+    UE_LOG(
+        LogRldGridManager,
+        Log,
+        TEXT("DebugDrawLegend: 緑=床マス 赤=壁マス 青=階段マス")
+    );
+
+    UE_LOG(
+        LogRldGridManager,
+        Log,
+        TEXT("DebugDrawLegend: 床数=%d 壁数=%d 階段座標=(%d,%d)"),
+        floorCells.Num(),
+        wallCells.Num(),
+        stairsGridCoord.X,
+        stairsGridCoord.Y
+    );
+}
+
+/** 階段マス座標を設定する */
 void ARldGridManager::SetStairsGridCoord(const FIntPoint& newGridCoord)
 {
     stairsGridCoord = newGridCoord;
@@ -409,56 +477,145 @@ void ARldGridManager::SetStairsGridCoord(const FIntPoint& newGridCoord)
     );
 }
 
-/** 必要に応じて外周壁を自動生成する */
-void ARldGridManager::GenerateOuterWallCells()
+/** 配列から床マスと壁マスの検索用Setを再構築する */
+void ARldGridManager::RebuildCellSets()
 {
-    // グリッドサイズ不足時は外周壁を作れない
-    if (gridWidth <= 0 || gridHeight <= 0)
+    floorCellSet.Reset();
+    wallCellSet.Reset();
+
+    for (const FIntPoint& floorCell : floorCells)
     {
-        UE_LOG(
-            LogRldGridManager,
-            Warning,
-            TEXT("GenerateOuterWallCells: グリッドサイズ不正のため外周壁を生成しません サイズ=(%d,%d)"),
-            gridWidth,
-            gridHeight
-        );
+        floorCellSet.Add(floorCell);
+    }
+
+    for (const FIntPoint& wallCell : wallCells)
+    {
+        wallCellSet.Add(wallCell);
+    }
+}
+
+/** グリッドデバッグ描画を更新する */
+void ARldGridManager::UpdateContinuousDebugDraw(float deltaSeconds)
+{
+    if (!ShouldDrawContinuousDebug())
+    {
+        continuousDebugDrawElapsed = 0.0f;
         return;
     }
 
-    const int32 beforeWallCount = wallCells.Num();
+    continuousDebugDrawElapsed += deltaSeconds;
 
-    // 上端と下端を追加
-    for (int32 x = 0; x < gridWidth; ++x)
+    if (continuousDebugDrawElapsed < continuousDebugDrawInterval)
     {
-        AddWallCellUnique(FIntPoint(x, 0));
-        AddWallCellUnique(FIntPoint(x, gridHeight - 1));
+        return;
     }
 
-    // 左端と右端を追加
-    for (int32 y = 0; y < gridHeight; ++y)
-    {
-        AddWallCellUnique(FIntPoint(0, y));
-        AddWallCellUnique(FIntPoint(gridWidth - 1, y));
-    }
+    continuousDebugDrawElapsed = 0.0f;
 
-    UE_LOG(
-        LogRldGridManager,
-        Log,
-        TEXT("GenerateOuterWallCells: 外周壁を生成しました 追加前=%d 追加後=%d グリッドサイズ=(%d,%d)"),
-        beforeWallCount,
-        wallCells.Num(),
-        gridWidth,
-        gridHeight
-    );
+    // 常時描画ではログを出さない
+    DrawDebugGridStateInternal(false);
 }
 
-/**
- * 壁マスを重複なしで追加する
- */
-void ARldGridManager::AddWallCellUnique(const FIntPoint& wallCoord)
+/** グリッド常時デバッグ描画が有効か判定する */
+bool ARldGridManager::ShouldDrawContinuousDebug() const
 {
-    if (!wallCells.Contains(wallCoord))
+    if (!bEnableContinuousDebugDraw)
     {
-        wallCells.Add(wallCoord);
+        return false;
+    }
+
+    UWorld* world = GetWorld();
+
+    if (!world)
+    {
+        return false;
+    }
+
+    const UCmnDebugWorldSubsystem* debugSubsystem = world->GetSubsystem<UCmnDebugWorldSubsystem>();
+
+    if (!debugSubsystem)
+    {
+        return false;
+    }
+
+    return debugSubsystem->IsDebugEnabled()
+        && debugSubsystem->IsCategoryEnabled(CmnDebugCategories::Grid);
+}
+
+/** 現在のフロア状態をデバッグ描画する */
+void ARldGridManager::DrawDebugGridStateInternal(bool bOutputLog) const
+{
+    UWorld* world = GetWorld();
+
+    // World未取得時は描画しない
+    if (!world)
+    {
+        if (bOutputLog)
+        {
+            UE_LOG(
+                LogRldGridManager,
+                Warning,
+                TEXT("DrawDebugGridState: World未取得のため描画しません")
+            );
+        }
+
+        return;
+    }
+
+    UCmnDebugWorldSubsystem* debugSubsystem = world->GetSubsystem<UCmnDebugWorldSubsystem>();
+
+    // DebugSubsystem未取得時は描画しない
+    if (!debugSubsystem)
+    {
+        if (bOutputLog)
+        {
+            UE_LOG(
+                LogRldGridManager,
+                Warning,
+                TEXT("DrawDebugGridState: DebugSubsystem未取得のため描画しません")
+            );
+        }
+
+        return;
+    }
+
+    // デバッグ描画全体またはGridカテゴリが無効な場合は描画しない
+    if (!debugSubsystem->IsDebugEnabled() || !debugSubsystem->IsCategoryEnabled(CmnDebugCategories::Grid))
+    {
+        return;
+    }
+
+    // 床マスを描画
+    debugSubsystem->DrawGridCells(
+        gridDefinition,
+        floorCells,
+        floorDebugStyle
+    );
+
+    // 壁マスを描画
+    debugSubsystem->DrawGridCells(
+        gridDefinition,
+        wallCells,
+        wallDebugStyle
+    );
+
+    // 階段マスを描画
+    debugSubsystem->DrawGridCell(
+        gridDefinition,
+        stairsGridCoord,
+        stairsDebugStyle
+    );
+
+    if (bOutputLog)
+    {
+        UE_LOG(
+            LogRldGridManager,
+            Log,
+            TEXT("DrawDebugGridState: 床数=%d 壁数=%d 階段座標=(%d,%d)"),
+            floorCells.Num(),
+            wallCells.Num(),
+            stairsGridCoord.X,
+            stairsGridCoord.Y
+        );
     }
 }
