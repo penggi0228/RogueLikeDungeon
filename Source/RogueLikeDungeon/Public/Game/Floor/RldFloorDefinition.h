@@ -7,9 +7,10 @@
 #include "Common/Grid/CmnGridDefinition.h"
 #include "RldFloorDefinition.generated.h"
 
+class ARldEnemyBase;
+
 /**
- * フロア定義DataTableの1行分を表す構造体
- * グリッドサイズ、開始位置、階段位置、壁マス情報を保持する
+ * フロア定義DataTable用構造体
  */
 USTRUCT(BlueprintType)
 struct FRldFloorDefinition : public FTableRowBase
@@ -18,37 +19,105 @@ struct FRldFloorDefinition : public FTableRowBase
 
 public:
 
-    // ----- グリッド設定 -----
+    // ----- 基本設定 -----
 
     // グリッド横幅
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rld|Floor")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rld|Floor", meta = (ClampMin = "3"))
     int32 gridWidth = 20;
 
     // グリッド縦幅
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rld|Floor")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rld|Floor", meta = (ClampMin = "3"))
     int32 gridHeight = 20;
 
-    // グリッド座標とワールド座標の変換定義
+    // グリッド座標変換設定
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rld|Floor")
     FCmnGridDefinition gridDefinition;
 
-    // ----- フロア座標設定 -----
-
-    // プレイヤー開始グリッド座標
+    // 自動生成を使うか
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rld|Floor")
+    bool bUseProceduralLayout = true;
+
+    // 自動生成時にランダムSeedを使うか(falseなら自動生成結果が固定される)
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rld|Floor")
+    bool bUseRandomSeed = false;
+
+    // 固定Seed値(自動生成結果を固定)
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rld|Floor")
+    int32 randomSeed = 12345;
+
+public:
+
+    // ----- 自動生成設定 -----
+
+    // 部屋数最小
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rld|Floor|ProcGen", meta = (ClampMin = "1"))
+    int32 minRoomCount = 4;
+
+    // 部屋数最大
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rld|Floor|ProcGen", meta = (ClampMin = "1"))
+    int32 maxRoomCount = 7;
+
+    // 部屋横幅最小
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rld|Floor|ProcGen", meta = (ClampMin = "3"))
+    int32 minRoomWidth = 4;
+
+    // 部屋横幅最大
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rld|Floor|ProcGen", meta = (ClampMin = "3"))
+    int32 maxRoomWidth = 8;
+
+    // 部屋縦幅最小
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rld|Floor|ProcGen", meta = (ClampMin = "3"))
+    int32 minRoomHeight = 4;
+
+    // 部屋縦幅最大
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rld|Floor|ProcGen", meta = (ClampMin = "3"))
+    int32 maxRoomHeight = 8;
+
+    // 部屋配置試行回数
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rld|Floor|ProcGen", meta = (ClampMin = "1"))
+    int32 roomPlacementAttempts = 80;
+
+    // 部屋同士の余白
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rld|Floor|ProcGen", meta = (ClampMin = "0"))
+    int32 roomSeparationPadding = 1;
+
+public:
+
+    // ----- エネミー自動生成設定 -----
+
+    // 自動生成フロアで使用するエネミークラス
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rld|Floor|ProcGen|Enemy")
+    TSubclassOf<ARldEnemyBase> proceduralEnemyClass = nullptr;
+
+    // 自動生成フロアのエネミー数最小
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rld|Floor|ProcGen|Enemy", meta = (ClampMin = "0"))
+    int32 minProceduralEnemyCount = 0;
+
+    // 自動生成フロアのエネミー数最大
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rld|Floor|ProcGen|Enemy", meta = (ClampMin = "0"))
+    int32 maxProceduralEnemyCount = 3;
+
+    // プレイヤー開始位置からの最小距離
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rld|Floor|ProcGen|Enemy", meta = (ClampMin = "0"))
+    int32 minDistanceFromPlayerStartForEnemySpawn = 4;
+
+    // 階段位置からの最小距離
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rld|Floor|ProcGen|Enemy", meta = (ClampMin = "0"))
+    int32 minDistanceFromStairsForEnemySpawn = 4;
+
+public:
+
+    // ----- 固定レイアウト設定 -----
+
+    // 開始座標
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rld|Floor|Fixed")
     FIntPoint playerStartGridCoord = FIntPoint(1, 1);
 
-    // 階段グリッド座標
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rld|Floor")
+    // 階段座標
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rld|Floor|Fixed")
     FIntPoint stairsGridCoord = FIntPoint(18, 18);
 
-    // ----- 壁マス設定 -----
-
-    // 壁マス座標配列
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rld|Floor")
+    // 固定レイアウト用の壁マス一覧
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rld|Floor|Fixed")
     TArray<FIntPoint> wallCells;
-
-    // BeginPlay時に外周壁を自動生成するか
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rld|Floor")
-    bool bGenerateOuterWalls = true;
 };

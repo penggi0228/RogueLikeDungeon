@@ -4,15 +4,17 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Common/Debug/CmnDebugDrawTypes.h"
 #include "Common/Grid/CmnGridDefinition.h"
+#include "Common/ProcGen/CmnGridLayoutTypes.h"
 #include "Game/Floor/RldFloorDefinition.h"
 #include "RldGridManager.generated.h"
 
 /**
  * RogueLikeDungeon用グリッド管理Actor
  *
- * レベル上のグリッド範囲・通行可否・占有情報を管理する
- * フロア定義の反映後は、現在フロアのグリッド状態を保持する
+ * レベル上のグリッド範囲・床マス・壁マス・特殊マス・占有情報を管理する
+ * フロア定義と生成結果の反映後は、現在フロアのグリッド状態を保持する
  */
 UCLASS()
 class ROGUELIKEDUNGEON_API ARldGridManager : public AActor
@@ -29,18 +31,23 @@ protected:
     // ----- AActor -----
 
     virtual void BeginPlay() override;
+    virtual void Tick(float deltaSeconds) override;
 
 public:
 
-    // ----- フロア定義反映 -----
+    // ----- フロア状態反映 -----
 
     /**
-     * フロア定義を現在のグリッド状態へ反映する
+     * フロア定義と生成結果を現在のグリッド状態へ反映する
      *
-     * @param floorDefinition 反映するフロア定義
+     * @param floorDefinition 反映元フロア定義
+     * @param floorLayout 反映元生成結果
      */
     UFUNCTION(BlueprintCallable, Category = "Rld|Grid")
-    void ApplyFloorDefinition(const FRldFloorDefinition& floorDefinition);
+    void ApplyFloorLayout(
+        const FRldFloorDefinition& floorDefinition,
+        const FCmnGridLayoutBuildResult& floorLayout
+    );
 
 public:
 
@@ -54,6 +61,15 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "Rld|Grid")
     bool IsInsideGrid(const FIntPoint& gridCoord) const;
+
+    /**
+     * 指定グリッド座標が床マスか判定する
+     *
+     * @param gridCoord 判定対象グリッド座標
+     * @return 床マスならtrue
+     */
+    UFUNCTION(BlueprintCallable, Category = "Rld|Grid")
+    bool IsFloorCell(const FIntPoint& gridCoord) const;
 
     /**
      * 指定グリッド座標が壁マスか判定する
@@ -163,6 +179,18 @@ public:
 
 public:
 
+    // ----- デバッグ描画 -----
+
+    /** 現在のフロア状態をデバッグ描画する */
+    UFUNCTION(BlueprintCallable, Category = "Rld|Grid|Debug")
+    void DrawDebugGridState() const;
+
+    /** デバッグ描画凡例をログ出力する */
+    UFUNCTION(BlueprintCallable, Category = "Rld|Grid|Debug")
+    void LogDebugDrawLegend();
+
+public:
+
     // ----- Getter -----
 
     /**
@@ -196,6 +224,17 @@ public:
     FCmnGridDefinition GetGridDefinition() const
     {
         return gridDefinition;
+    }
+
+    /**
+     * 床マス座標配列を取得する
+     *
+     * @return 床マス座標配列
+     */
+    UFUNCTION(BlueprintPure, Category = "Rld|Grid")
+    const TArray<FIntPoint>& GetFloorCells() const
+    {
+        return floorCells;
     }
 
     /**
@@ -234,17 +273,23 @@ public:
 
 private:
 
-    // ----- 初期化補助 -----
+    // ----- 内部状態更新 -----
 
-    /** 必要に応じて外周壁を自動生成する */
-    void GenerateOuterWallCells();
+    /** 配列から床マスと壁マスの検索用Setを再構築する */
+    void RebuildCellSets();
+
+    /** グリッドデバッグ描画を更新する */
+    void UpdateContinuousDebugDraw(float deltaSeconds);
+
+    /** グリッド常時デバッグ描画が有効か判定する */
+    bool ShouldDrawContinuousDebug() const;
 
     /**
-     * 壁マスを重複なしで追加する
+     * 現在のフロア状態をデバッグ描画する
      *
-     * @param wallCoord 追加したい壁マス座標
+     * @param bOutputLog 描画ログを出力するか
      */
-    void AddWallCellUnique(const FIntPoint& wallCoord);
+    void DrawDebugGridStateInternal(bool bOutputLog) const;
 
 private:
 
@@ -261,14 +306,16 @@ private:
 
 private:
 
-    // ----- 壁マス状態 -----
+    // ----- マス状態 -----
 
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Rld|Grid|Wall", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Rld|Grid|Cell", meta = (AllowPrivateAccess = "true"))
+    TArray<FIntPoint> floorCells;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Rld|Grid|Cell", meta = (AllowPrivateAccess = "true"))
     TArray<FIntPoint> wallCells;
 
-    // 現在フロア反映時に外周壁を自動生成するか
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Rld|Grid|Wall", meta = (AllowPrivateAccess = "true"))
-    bool bGenerateOuterWallsOnBeginPlay = true;
+    TSet<FIntPoint> floorCellSet;
+    TSet<FIntPoint> wallCellSet;
 
 private:
 
@@ -282,4 +329,39 @@ private:
     // ----- 占有情報 -----
 
     TMap<FIntPoint, TWeakObjectPtr<AActor>> occupantMap;
+
+private:
+
+    // ----- デバッグ描画設定 -----
+
+    // フロア反映時に自動でデバッグ描画するか
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rld|Grid|Debug", meta = (AllowPrivateAccess = "true"))
+    bool bDrawDebugOnApplyFloorLayout = true;
+
+    // チェックON中に短時間DebugDrawを定期再描画するか
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rld|Grid|Debug", meta = (AllowPrivateAccess = "true"))
+    bool bEnableContinuousDebugDraw = true;
+
+    // 常時デバッグ描画の再描画間隔
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rld|Grid|Debug", meta = (AllowPrivateAccess = "true", ClampMin = "0.02"))
+    float continuousDebugDrawInterval = 0.10f;
+
+    // 床マス描画設定
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rld|Grid|Debug", meta = (AllowPrivateAccess = "true"))
+    FCmnDebugDrawStyle floorDebugStyle;
+
+    // 壁マス描画設定
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rld|Grid|Debug", meta = (AllowPrivateAccess = "true"))
+    FCmnDebugDrawStyle wallDebugStyle;
+
+    // 階段マス描画設定
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rld|Grid|Debug", meta = (AllowPrivateAccess = "true"))
+    FCmnDebugDrawStyle stairsDebugStyle;
+
+private:
+
+    // ----- デバッグ描画Runtime状態 -----
+
+    float continuousDebugDrawElapsed = 0.0f;
+    bool bDebugLegendLogged = false;
 };

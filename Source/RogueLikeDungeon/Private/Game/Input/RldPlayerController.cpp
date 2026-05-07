@@ -11,6 +11,7 @@
 #include "Common/Input/CmnInputConfig.h"
 #include "Common/Settings/CmnSettingsSubsystem.h"
 #include "Game/Characters/RldPlayerCharacter.h"
+#include "Game/UI/RldDebugOptionsWidget.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogRldInput, Log, All);
 
@@ -22,8 +23,11 @@ ARldPlayerController::ARldPlayerController()
 
     // 入力設定DataAsset参照を設定
     InputConfigAsset = TSoftObjectPtr<UCmnInputConfig>(
-        FSoftObjectPath(TEXT("/Game/Game/Input/DA_CmnInputConfig_Default.DA_CmnInputConfig_Default"))
+        FSoftObjectPath(TEXT("/Game/Game/Input/DataAssets/DA_CmnInputConfig_Default.DA_CmnInputConfig_Default"))
     );
+
+    // デバッグオプションWidgetクラス参照を設定
+    DebugOptionsWidgetClass = nullptr;
 }
 
 // ----- AActor -----
@@ -130,10 +134,10 @@ void ARldPlayerController::SetupInputComponent()
     }
 
     // 待機InputAction取得時はBind
-    if (LoadedInputConfig && LoadedInputConfig->IA_Wait)
+    if (InputRouter->IA_Wait)
     {
         UE_LOG(LogRldInput, Log, TEXT("SetupInputComponent: IA_WaitをBindします"));
-        EIC->BindAction(LoadedInputConfig->IA_Wait, ETriggerEvent::Started, this, &ARldPlayerController::OnWaitStarted);
+        EIC->BindAction(InputRouter->IA_Wait, ETriggerEvent::Started, this, &ARldPlayerController::OnWaitStarted);
     }
     else
     {
@@ -175,6 +179,28 @@ void ARldPlayerController::SetupInputComponent()
         UE_LOG(LogRldInput, Warning, TEXT("SetupInputComponent: IA_UI_Directionがnull"));
     }
 
+    // UI決定InputAction取得時はBind
+    if (InputRouter->IA_UI_Confirm)
+    {
+        UE_LOG(LogRldInput, Log, TEXT("SetupInputComponent: IA_UI_ConfirmをBindします"));
+        EIC->BindAction(InputRouter->IA_UI_Confirm, ETriggerEvent::Started, this, &ARldPlayerController::OnUIConfirmStarted);
+    }
+    else
+    {
+        UE_LOG(LogRldInput, Warning, TEXT("SetupInputComponent: IA_UI_Confirmがnull"));
+    }
+
+    // UI閉じるInputAction取得時はBind
+    if (InputRouter->IA_UI_Close)
+    {
+        UE_LOG(LogRldInput, Log, TEXT("SetupInputComponent: IA_UI_CloseをBindします"));
+        EIC->BindAction(InputRouter->IA_UI_Close, ETriggerEvent::Started, this, &ARldPlayerController::OnUICloseStarted);
+    }
+    else
+    {
+        UE_LOG(LogRldInput, Warning, TEXT("SetupInputComponent: IA_UI_Closeがnull"));
+    }
+
     // UIスクロールInputAction取得時はBind
     if (InputRouter->IA_UI_Scroll)
     {
@@ -184,6 +210,96 @@ void ARldPlayerController::SetupInputComponent()
     else
     {
         UE_LOG(LogRldInput, Warning, TEXT("SetupInputComponent: IA_UI_Scrollがnull"));
+    }
+
+    // ----- デバッグコマンド -----
+
+    // デバッグコマンド開始InputAction取得時はBind
+    if (InputRouter->IA_DebugCommandPrefix)
+    {
+        UE_LOG(LogRldInput, Log, TEXT("SetupInputComponent: IA_DebugCommandPrefixをBindします"));
+        EIC->BindAction(InputRouter->IA_DebugCommandPrefix, ETriggerEvent::Started, this, &ARldPlayerController::OnDebugCommandPrefixStarted);
+    }
+    else
+    {
+        UE_LOG(LogRldInput, Warning, TEXT("SetupInputComponent: IA_DebugCommandPrefixがnull"));
+    }
+
+    // キーボード用デバッグコマンド1InputAction取得時はBind
+    if (InputRouter->IA_DebugCommandKeyboard1)
+    {
+        UE_LOG(LogRldInput, Log, TEXT("SetupInputComponent: IA_DebugCommandKeyboard1をBindします"));
+        EIC->BindAction(InputRouter->IA_DebugCommandKeyboard1, ETriggerEvent::Started, this, &ARldPlayerController::OnDebugCommandKeyboard1Started);
+    }
+    else
+    {
+        UE_LOG(LogRldInput, Warning, TEXT("SetupInputComponent: IA_DebugCommandKeyboard1がnull"));
+    }
+
+    // キーボード用デバッグコマンド2InputAction取得時はBind
+    if (InputRouter->IA_DebugCommandKeyboard2)
+    {
+        UE_LOG(LogRldInput, Log, TEXT("SetupInputComponent: IA_DebugCommandKeyboard2をBindします"));
+        EIC->BindAction(InputRouter->IA_DebugCommandKeyboard2, ETriggerEvent::Started, this, &ARldPlayerController::OnDebugCommandKeyboard2Started);
+    }
+    else
+    {
+        UE_LOG(LogRldInput, Warning, TEXT("SetupInputComponent: IA_DebugCommandKeyboard2がnull"));
+    }
+
+    // キーボード用デバッグコマンド3InputAction取得時はBind
+    if (InputRouter->IA_DebugCommandKeyboard3)
+    {
+        UE_LOG(LogRldInput, Log, TEXT("SetupInputComponent: IA_DebugCommandKeyboard3をBindします"));
+        EIC->BindAction(InputRouter->IA_DebugCommandKeyboard3, ETriggerEvent::Started, this, &ARldPlayerController::OnDebugCommandKeyboard3Started);
+    }
+    else
+    {
+        UE_LOG(LogRldInput, Warning, TEXT("SetupInputComponent: IA_DebugCommandKeyboard3がnull"));
+    }
+
+    // キーボード用デバッグコマンド4InputAction取得時はBind
+    if (InputRouter->IA_DebugCommandKeyboard4)
+    {
+        UE_LOG(LogRldInput, Log, TEXT("SetupInputComponent: IA_DebugCommandKeyboard4をBindします"));
+        EIC->BindAction(InputRouter->IA_DebugCommandKeyboard4, ETriggerEvent::Started, this, &ARldPlayerController::OnDebugCommandKeyboard4Started);
+    }
+    else
+    {
+        UE_LOG(LogRldInput, Warning, TEXT("SetupInputComponent: IA_DebugCommandKeyboard4がnull"));
+    }
+
+    // キーボード用デバッグコマンド5InputAction取得時はBind
+    if (InputRouter->IA_DebugCommandKeyboard5)
+    {
+        UE_LOG(LogRldInput, Log, TEXT("SetupInputComponent: IA_DebugCommandKeyboard5をBindします"));
+        EIC->BindAction(InputRouter->IA_DebugCommandKeyboard5, ETriggerEvent::Started, this, &ARldPlayerController::OnDebugCommandKeyboard5Started);
+    }
+    else
+    {
+        UE_LOG(LogRldInput, Warning, TEXT("SetupInputComponent: IA_DebugCommandKeyboard5がnull"));
+    }
+
+    // ゲームパッド用デバッグコマンド1InputAction取得時はBind
+    if (InputRouter->IA_DebugCommandGamepad1)
+    {
+        UE_LOG(LogRldInput, Log, TEXT("SetupInputComponent: IA_DebugCommandGamepad1をBindします"));
+        EIC->BindAction(InputRouter->IA_DebugCommandGamepad1, ETriggerEvent::Started, this, &ARldPlayerController::OnDebugCommandGamepad1Started);
+    }
+    else
+    {
+        UE_LOG(LogRldInput, Warning, TEXT("SetupInputComponent: IA_DebugCommandGamepad1がnull"));
+    }
+
+    // ゲームパッド用デバッグコマンド2InputAction取得時はBind
+    if (InputRouter->IA_DebugCommandGamepad2)
+    {
+        UE_LOG(LogRldInput, Log, TEXT("SetupInputComponent: IA_DebugCommandGamepad2をBindします"));
+        EIC->BindAction(InputRouter->IA_DebugCommandGamepad2, ETriggerEvent::Started, this, &ARldPlayerController::OnDebugCommandGamepad2Started);
+    }
+    else
+    {
+        UE_LOG(LogRldInput, Warning, TEXT("SetupInputComponent: IA_DebugCommandGamepad2がnull"));
     }
 }
 
@@ -230,6 +346,13 @@ void ARldPlayerController::OnMoveStarted(const FInputActionValue& Value)
     if (!InputRouter || !InputRouter->IsGameMode())
     {
         UE_LOG(LogRldInput, Verbose, TEXT("OnMoveStarted: ゲームモード以外のため処理しない"));
+        return;
+    }
+
+    // デバッグコマンド入力受付中は通常ゲーム入力を受け付けない
+    if (IsHiddenDebugCommandInputActive())
+    {
+        UE_LOG(LogRldInput, Verbose, TEXT("OnMoveStarted: デバッグコマンド入力受付中のため処理しない"));
         return;
     }
 
@@ -286,6 +409,13 @@ void ARldPlayerController::OnMoveTriggered(const FInputActionValue& Value)
         Axis.Y
     );
 
+    // デバッグコマンド入力受付中は通常ゲーム入力を受け付けない
+    if (IsHiddenDebugCommandInputActive())
+    {
+        UE_LOG(LogRldInput, Verbose, TEXT("OnMoveTriggered: デバッグコマンド入力受付中のため処理しない"));
+        return;
+    }
+
     // 左スティック入力のみTriggered側で処理
     if (IsLikelyLeftStickInput(Axis))
     {
@@ -303,6 +433,13 @@ void ARldPlayerController::OnWaitStarted(const FInputActionValue& Value)
     if (!InputRouter || !InputRouter->IsGameMode())
     {
         UE_LOG(LogRldInput, Verbose, TEXT("OnWaitStarted: ゲームモード以外のため処理しない"));
+        return;
+    }
+
+    // デバッグコマンド入力受付中は通常ゲーム入力を受け付けない
+    if (IsHiddenDebugCommandInputActive())
+    {
+        UE_LOG(LogRldInput, Verbose, TEXT("OnWaitStarted: デバッグコマンド入力受付中のため処理しない"));
         return;
     }
 
@@ -344,6 +481,13 @@ void ARldPlayerController::OnCameraLookTriggered(const FInputActionValue& Value)
     if (!InputRouter || !InputRouter->IsGameMode())
     {
         UE_LOG(LogRldInput, Verbose, TEXT("OnCameraLookTriggered: ゲームモード以外のため処理しない"));
+        return;
+    }
+
+    // デバッグコマンド入力受付中は通常ゲーム入力を受け付けない
+    if (IsHiddenDebugCommandInputActive())
+    {
+        UE_LOG(LogRldInput, Verbose, TEXT("OnCameraLookTriggered: デバッグコマンド入力受付中のため処理しない"));
         return;
     }
 
@@ -406,6 +550,13 @@ void ARldPlayerController::OnCameraZoomTriggered(const FInputActionValue& Value)
         return;
     }
 
+    // デバッグコマンド入力受付中は通常ゲーム入力を受け付けない
+    if (IsHiddenDebugCommandInputActive())
+    {
+        UE_LOG(LogRldInput, Verbose, TEXT("OnCameraZoomTriggered: デバッグコマンド入力受付中のため処理しない"));
+        return;
+    }
+
     ARldPlayerCharacter* PlayerCharacter = GetRldPlayerCharacter();
 
     // プレイヤーキャラクター未取得時はズーム入力しない
@@ -437,7 +588,65 @@ void ARldPlayerController::OnUIDirectionTriggered(const FInputActionValue& Value
     }
 
     const FVector2D Axis = Value.Get<FVector2D>();
+
+    // 表示中のデバッグオプションがある場合は専用フォーカス移動を行う
+    if (URldDebugOptionsWidget* DebugOptionsWidget = GetActiveDebugOptionsWidget())
+    {
+        FIntPoint Direction;
+
+        if (InputRouter->GetMoveDirFromAxis(Axis, Direction))
+        {
+            if (Direction.Y > 0)
+            {
+                DebugOptionsWidget->MoveDebugFocus(-1);
+            }
+            else if (Direction.Y < 0)
+            {
+                DebugOptionsWidget->MoveDebugFocus(1);
+            }
+        }
+
+        return;
+    }
+
     InputRouter->HandleUIDirectionAxis(Axis);
+}
+
+/** UI決定入力を処理する */
+void ARldPlayerController::OnUIConfirmStarted(const FInputActionValue& Value)
+{
+    // 未使用引数
+    (void)Value;
+
+    // メニューまたはダイアログ以外ではUI決定入力を処理しない
+    if (!InputRouter || (!InputRouter->IsMenuMode() && !InputRouter->IsDialogMode()))
+    {
+        return;
+    }
+
+    if (URldDebugOptionsWidget* DebugOptionsWidget = GetActiveDebugOptionsWidget())
+    {
+        DebugOptionsWidget->ConfirmFocusedDebugItem();
+    }
+}
+
+/** UIクローズ入力を処理する */
+void ARldPlayerController::OnUICloseStarted(const FInputActionValue& Value)
+{
+    // 未使用引数
+    (void)Value;
+
+    // メニューまたはダイアログ以外ではUIクローズ入力を処理しない
+    if (!InputRouter || (!InputRouter->IsMenuMode() && !InputRouter->IsDialogMode()))
+    {
+        return;
+    }
+
+    if (URldDebugOptionsWidget* DebugOptionsWidget = GetActiveDebugOptionsWidget())
+    {
+        DebugOptionsWidget->CloseDebugOptions();
+        SetCommonInputMode(ECmnInputMode::Game);
+    }
 }
 
 /** UIスクロール入力を処理する */
@@ -451,6 +660,97 @@ void ARldPlayerController::OnUIScrollTriggered(const FInputActionValue& Value)
 
     const float Amount = Value.Get<float>();
     InputRouter->HandleUIScrollAxis(Amount);
+}
+
+// ----- デバッグUI入力 -----
+
+/** デバッグコマンド開始入力を処理する */
+void ARldPlayerController::OnDebugCommandPrefixStarted(const FInputActionValue& Value)
+{
+    // 未使用引数
+    (void)Value;
+
+    // ゲームモード以外ではデバッグUI表示コマンドを受け付けない
+    if (!InputRouter || !InputRouter->IsGameMode())
+    {
+        return;
+    }
+
+    UWorld* World = GetWorld();
+
+    if (!World)
+    {
+        return;
+    }
+
+    const double CurrentTime = World->GetTimeSeconds();
+
+    // 入力間隔が空いた場合はコマンド状態を初期化
+    if ((CurrentTime - lastHiddenDebugInputTime) > hiddenDebugCommandTimeout)
+    {
+        ResetDebugCommandState();
+    }
+
+    lastHiddenDebugInputTime = CurrentTime;
+    ++debugCommandPrefixCount;
+    debugCommandIndex = 0;
+    debugCommandInputType = ERldDebugCommandInputType::None;
+
+    UE_LOG(
+        LogRldInput,
+        Verbose,
+        TEXT("OnDebugCommandPrefixStarted: デバッグコマンド開始入力回数=%d"),
+        debugCommandPrefixCount
+    );
+}
+
+/** キーボード用デバッグコマンド第1入力を処理する */
+void ARldPlayerController::OnDebugCommandKeyboard1Started(const FInputActionValue& Value)
+{
+    (void)Value;
+    HandleKeyboardDebugCommandCharacter(0);
+}
+
+/** キーボード用デバッグコマンド第2入力を処理する */
+void ARldPlayerController::OnDebugCommandKeyboard2Started(const FInputActionValue& Value)
+{
+    (void)Value;
+    HandleKeyboardDebugCommandCharacter(1);
+}
+
+/** キーボード用デバッグコマンド第3入力を処理する */
+void ARldPlayerController::OnDebugCommandKeyboard3Started(const FInputActionValue& Value)
+{
+    (void)Value;
+    HandleKeyboardDebugCommandCharacter(2);
+}
+
+/** キーボード用デバッグコマンド第4入力を処理する */
+void ARldPlayerController::OnDebugCommandKeyboard4Started(const FInputActionValue& Value)
+{
+    (void)Value;
+    HandleKeyboardDebugCommandCharacter(3);
+}
+
+/** キーボード用デバッグコマンド第5入力を処理する */
+void ARldPlayerController::OnDebugCommandKeyboard5Started(const FInputActionValue& Value)
+{
+    (void)Value;
+    HandleKeyboardDebugCommandCharacter(4);
+}
+
+/** ゲームパッド用デバッグコマンド第1入力を処理する */
+void ARldPlayerController::OnDebugCommandGamepad1Started(const FInputActionValue& Value)
+{
+    (void)Value;
+    HandleGamepadDebugCommandInput(true);
+}
+
+/** ゲームパッド用デバッグコマンド第2入力を処理する */
+void ARldPlayerController::OnDebugCommandGamepad2Started(const FInputActionValue& Value)
+{
+    (void)Value;
+    HandleGamepadDebugCommandInput(false);
 }
 
 // ----- ゲーム固有入力変換 -----
@@ -985,6 +1285,225 @@ bool ARldPlayerController::ShouldContinueMoveRepeat() const
     return CurrentDirection == RepeatingMoveDirection;
 }
 
+// ----- デバッグUI表示 -----
+
+/** キーボード用デバッグコマンドの1入力分を処理する */
+void ARldPlayerController::HandleKeyboardDebugCommandCharacter(int32 commandIndex)
+{
+    // ゲームモード以外ではデバッグUI表示コマンドを受け付けない
+    if (!InputRouter || !InputRouter->IsGameMode())
+    {
+        return;
+    }
+
+    // 入力間隔が空いた場合はコマンド状態を初期化
+    if (IsDebugCommandTimedOut())
+    {
+        ResetDebugCommandState();
+        return;
+    }
+
+    UWorld* World = GetWorld();
+
+    if (!World)
+    {
+        return;
+    }
+
+    lastHiddenDebugInputTime = World->GetTimeSeconds();
+
+    // 開始入力が必要回数に満たない場合は文字入力を受け付けない
+    if (debugCommandPrefixCount < debugCommandPrefixRequiredCount)
+    {
+        return;
+    }
+
+    // 入力方式未確定の場合はキーボード方式として確定
+    if (debugCommandInputType == ERldDebugCommandInputType::None)
+    {
+        debugCommandInputType = ERldDebugCommandInputType::Keyboard;
+    }
+
+    // ゲームパッド方式の入力中にキーボード入力が来た場合は初期化
+    if (debugCommandInputType != ERldDebugCommandInputType::Keyboard)
+    {
+        ResetDebugCommandState();
+        return;
+    }
+
+    // 期待している文字順と異なる場合は初期化
+    if (commandIndex != debugCommandIndex)
+    {
+        ResetDebugCommandState();
+        return;
+    }
+
+    ++debugCommandIndex;
+
+    // DEBUGの5文字分が揃ったらデバッグUIを表示
+    if (debugCommandIndex >= 5)
+    {
+        ResetDebugCommandState();
+        OpenDebugOptionsWidget();
+    }
+}
+
+/** ゲームパッド用デバッグコマンドの1入力分を処理する */
+void ARldPlayerController::HandleGamepadDebugCommandInput(bool bIsGamepad1Input)
+{
+    // ゲームモード以外ではデバッグUI表示コマンドを受け付けない
+    if (!InputRouter || !InputRouter->IsGameMode())
+    {
+        return;
+    }
+
+    // 入力間隔が空いた場合はコマンド状態を初期化
+    if (IsDebugCommandTimedOut())
+    {
+        ResetDebugCommandState();
+        return;
+    }
+
+    UWorld* World = GetWorld();
+
+    if (!World)
+    {
+        return;
+    }
+
+    lastHiddenDebugInputTime = World->GetTimeSeconds();
+
+    // 開始入力が必要回数に満たない場合はゲームパッド用デバッグ入力を受け付けない
+    if (debugCommandPrefixCount < debugCommandPrefixRequiredCount)
+    {
+        return;
+    }
+
+    // 入力方式未確定の場合はゲームパッド方式として確定
+    if (debugCommandInputType == ERldDebugCommandInputType::None)
+    {
+        debugCommandInputType = ERldDebugCommandInputType::Gamepad;
+    }
+
+    // キーボード方式の入力中にゲームパッド入力が来た場合は初期化
+    if (debugCommandInputType != ERldDebugCommandInputType::Gamepad)
+    {
+        ResetDebugCommandState();
+        return;
+    }
+
+    // IA_DebugCommandGamepad1に割り当てたボタンはコマンド入力カウントが偶数の時に入力する
+    const bool bExpectedGamepad1Input = (debugCommandIndex % 2) == 0;
+
+    // 期待している交互順と異なる場合は初期化
+    if (bIsGamepad1Input != bExpectedGamepad1Input)
+    {
+        ResetDebugCommandState();
+        return;
+    }
+
+    ++debugCommandIndex;
+
+    // Gamepad1→Gamepad2→Gamepad1→Gamepad2の4入力が揃ったらデバッグUIを表示
+    if (debugCommandIndex >= 4)
+    {
+        ResetDebugCommandState();
+        OpenDebugOptionsWidget();
+    }
+}
+
+/** デバッグコマンド入力状態を初期化する */
+void ARldPlayerController::ResetDebugCommandState()
+{
+    debugCommandPrefixCount = 0;
+    debugCommandIndex = 0;
+    debugCommandInputType = ERldDebugCommandInputType::None;
+    lastHiddenDebugInputTime = 0.0;
+}
+
+/** デバッグコマンド入力受付中か判定する */
+bool ARldPlayerController::IsHiddenDebugCommandInputActive() const
+{
+    // タイムアウト後は入力受付中でない扱いにする
+    if (IsDebugCommandTimedOut())
+    {
+        return false;
+    }
+
+    return debugCommandPrefixCount >= debugCommandPrefixRequiredCount;
+}
+
+/** デバッグコマンド入力がタイムアウトしているか判定する */
+bool ARldPlayerController::IsDebugCommandTimedOut() const
+{
+    if (debugCommandPrefixCount <= 0)
+    {
+        return false;
+    }
+
+    UWorld* World = GetWorld();
+
+    if (!World)
+    {
+        return false;
+    }
+
+    return (World->GetTimeSeconds() - lastHiddenDebugInputTime) > hiddenDebugCommandTimeout;
+}
+
+/** デバッグオプションWidgetを表示する */
+void ARldPlayerController::OpenDebugOptionsWidget()
+{
+    // すでに表示中の場合は再生成しない
+    if (ActiveDebugOptionsWidget && ActiveDebugOptionsWidget->IsInViewport())
+    {
+        SetCommonInputMode(ECmnInputMode::Menu);
+        return;
+    }
+
+    // デバッグオプションWidgetクラス未設定時は表示しない
+    if (!DebugOptionsWidgetClass)
+    {
+        UE_LOG(
+            LogRldInput,
+            Warning,
+            TEXT("OpenDebugOptionsWidget: DebugOptionsWidgetClass未設定のため表示できません")
+        );
+        return;
+    }
+
+    ActiveDebugOptionsWidget = CreateWidget<URldDebugOptionsWidget>(
+        this,
+        DebugOptionsWidgetClass
+    );
+
+    if (!ActiveDebugOptionsWidget)
+    {
+        UE_LOG(
+            LogRldInput,
+            Warning,
+            TEXT("OpenDebugOptionsWidget: DebugOptionsWidget生成に失敗しました")
+        );
+        return;
+    }
+
+    ActiveDebugOptionsWidget->AddToViewport(100);
+    SetCommonInputMode(ECmnInputMode::Menu);
+
+    UE_LOG(LogRldInput, Log, TEXT("OpenDebugOptionsWidget: デバッグオプションを表示しました"));
+}
+
+/** 表示中のデバッグオプションWidgetを取得する */
+URldDebugOptionsWidget* ARldPlayerController::GetActiveDebugOptionsWidget() const
+{
+    if (!ActiveDebugOptionsWidget || !ActiveDebugOptionsWidget->IsInViewport())
+    {
+        return nullptr;
+    }
+
+    return ActiveDebugOptionsWidget;
+}
+
 // ----- 内部処理 -----
 
 /** 入力設定をロードして入力ルーターへ適用する */
@@ -1022,13 +1541,23 @@ void ARldPlayerController::LoadAndApplyInputConfig()
         UE_LOG(
             LogRldInput,
             Log,
-            TEXT("LoadAndApplyInputConfig: 入力設定を適用しました 移動=%s 待機=%s 視点=%s ズーム=%s UI方向=%s UIスクロール=%s"),
+            TEXT("LoadAndApplyInputConfig: 入力設定を適用しました 移動=%s 待機=%s 視点=%s ズーム=%s UI方向=%s UI決定=%s UI閉じる=%s UIスクロール=%s DebugPrefix=%s DebugKeyboard=%s DebugGamepad=%s"),
             InputRouter->IA_Move ? TEXT("あり") : TEXT("なし"),
-            LoadedInputConfig && LoadedInputConfig->IA_Wait ? TEXT("あり") : TEXT("なし"),
+            InputRouter->IA_Wait ? TEXT("あり") : TEXT("なし"),
             InputRouter->IA_CameraLook ? TEXT("あり") : TEXT("なし"),
             InputRouter->IA_CameraZoom ? TEXT("あり") : TEXT("なし"),
             InputRouter->IA_UI_Direction ? TEXT("あり") : TEXT("なし"),
-            InputRouter->IA_UI_Scroll ? TEXT("あり") : TEXT("なし")
+            InputRouter->IA_UI_Confirm ? TEXT("あり") : TEXT("なし"),
+            InputRouter->IA_UI_Close ? TEXT("あり") : TEXT("なし"),
+            InputRouter->IA_UI_Scroll ? TEXT("あり") : TEXT("なし"),
+            InputRouter->IA_DebugCommandPrefix ? TEXT("あり") : TEXT("なし"),
+            (InputRouter->IA_DebugCommandKeyboard1 &&
+                InputRouter->IA_DebugCommandKeyboard2 &&
+                InputRouter->IA_DebugCommandKeyboard3 &&
+                InputRouter->IA_DebugCommandKeyboard4 &&
+                InputRouter->IA_DebugCommandKeyboard5) ? TEXT("あり") : TEXT("なし"),
+            (InputRouter->IA_DebugCommandGamepad1 &&
+                InputRouter->IA_DebugCommandGamepad2) ? TEXT("あり") : TEXT("なし")
         );
     }
 }

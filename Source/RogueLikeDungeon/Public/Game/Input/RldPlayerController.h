@@ -15,6 +15,7 @@ class UEnhancedInputLocalPlayerSubsystem;
 class UCmnInputRouter;
 class UCmnInputConfig;
 class UCmnSettingsSubsystem;
+class URldDebugOptionsWidget;
 class ARldPlayerCharacter;
 struct FInputRuntimeSettings;
 
@@ -26,6 +27,16 @@ UCLASS()
 class ROGUELIKEDUNGEON_API ARldPlayerController : public APlayerController
 {
     GENERATED_BODY()
+
+private:
+
+    /** デバッグコマンド入力種別 */
+    enum class ERldDebugCommandInputType : uint8
+    {
+        None,
+        Keyboard,
+        Gamepad
+    };
 
 public:
 
@@ -85,8 +96,42 @@ private:
     /** UI方向入力を処理する */
     void OnUIDirectionTriggered(const FInputActionValue& Value);
 
+    /** UI決定入力を処理する */
+    void OnUIConfirmStarted(const FInputActionValue& Value);
+
+    /** UIクローズ入力を処理する */
+    void OnUICloseStarted(const FInputActionValue& Value);
+
     /** UIスクロール入力を処理する */
     void OnUIScrollTriggered(const FInputActionValue& Value);
+
+private:
+
+    // ----- デバッグUI入力 -----
+
+    /** デバッグコマンド開始入力を処理する */
+    void OnDebugCommandPrefixStarted(const FInputActionValue& Value);
+
+    /** キーボード用デバッグコマンド第1入力を処理する */
+    void OnDebugCommandKeyboard1Started(const FInputActionValue& Value);
+
+    /** キーボード用デバッグコマンド第2入力を処理する */
+    void OnDebugCommandKeyboard2Started(const FInputActionValue& Value);
+
+    /** キーボード用デバッグコマンド第3入力を処理する */
+    void OnDebugCommandKeyboard3Started(const FInputActionValue& Value);
+
+    /** キーボード用デバッグコマンド第4入力を処理する */
+    void OnDebugCommandKeyboard4Started(const FInputActionValue& Value);
+
+    /** キーボード用デバッグコマンド第5入力を処理する */
+    void OnDebugCommandKeyboard5Started(const FInputActionValue& Value);
+
+    /** ゲームパッド用デバッグコマンド第1入力を処理する */
+    void OnDebugCommandGamepad1Started(const FInputActionValue& Value);
+
+    /** ゲームパッド用デバッグコマンド第2入力を処理する */
+    void OnDebugCommandGamepad2Started(const FInputActionValue& Value);
 
 private:
 
@@ -240,6 +285,67 @@ private:
 
     // 押しっぱなし移動中フラグ
     bool bMoveRepeatActive = false;
+
+private:
+
+    // ----- デバッグUI表示 -----
+
+    /** キーボード用デバッグコマンドの1入力分を処理する */
+    void HandleKeyboardDebugCommandCharacter(int32 commandIndex);
+
+    /** ゲームパッド用デバッグコマンドの1入力分を処理する */
+    void HandleGamepadDebugCommandInput(bool bIsGamepad1Input);
+
+    /** デバッグコマンド入力状態を初期化する */
+    void ResetDebugCommandState();
+
+    /** デバッグコマンド入力受付中か判定する */
+    bool IsHiddenDebugCommandInputActive() const;
+
+    /** デバッグコマンド入力がタイムアウトしているか判定する */
+    bool IsDebugCommandTimedOut() const;
+
+    /** デバッグオプションWidgetを表示する */
+    void OpenDebugOptionsWidget();
+
+    /** 表示中のデバッグオプションWidgetを取得する */
+    URldDebugOptionsWidget* GetActiveDebugOptionsWidget() const;
+
+private:
+
+    // ----- デバッグUI設定 -----
+
+    // デバッグオプションWidgetクラス
+    UPROPERTY(EditDefaultsOnly, Category = "Rld|Debug")
+    TSubclassOf<URldDebugOptionsWidget> DebugOptionsWidgetClass;
+
+    // 表示中のデバッグオプションWidget
+    UPROPERTY(Transient)
+    TObjectPtr<URldDebugOptionsWidget> ActiveDebugOptionsWidget = nullptr;
+
+    // デバッグコマンド開始入力の必要回数
+    UPROPERTY(EditDefaultsOnly, Category = "Rld|Debug", meta = (ClampMin = "1"))
+    int32 debugCommandPrefixRequiredCount = 3;
+
+    // デバッグコマンド入力待ち時間
+    UPROPERTY(EditDefaultsOnly, Category = "Rld|Debug", meta = (ClampMin = "0.1"))
+    float hiddenDebugCommandTimeout = 5.0f;
+
+private:
+
+    // ----- デバッグUI入力状態 -----
+
+    // デバッグコマンド開始入力回数
+    int32 debugCommandPrefixCount = 0;
+
+    // デバッグコマンド文字入力Index
+    int32 debugCommandIndex = 0;
+
+    // デバッグコマンド入力種別
+    ERldDebugCommandInputType debugCommandInputType = ERldDebugCommandInputType::None;
+
+    // 最後にデバッグコマンド入力を受け取った時刻
+    double lastHiddenDebugInputTime = 0.0;
 
 private:
 
