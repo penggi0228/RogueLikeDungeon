@@ -1477,6 +1477,7 @@ void ARldPlayerController::OpenDebugOptionsWidget()
         DebugOptionsWidgetClass
     );
 
+    // デバッグオプションWidgetが有効でない場合は表示しない
     if (!ActiveDebugOptionsWidget)
     {
         UE_LOG(
