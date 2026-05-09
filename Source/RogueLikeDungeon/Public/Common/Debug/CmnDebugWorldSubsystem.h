@@ -124,7 +124,7 @@ private:
 
     // デバッグ描画全体の有効フラグ
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cmn|Debug", meta = (AllowPrivateAccess = "true"))
-    bool bDebugEnabled = true;
+    bool bDebugEnabled = false;
 
     // デバッグカテゴリごとの有効状態
     UPROPERTY(Transient)
