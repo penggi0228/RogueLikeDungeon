@@ -1,7 +1,7 @@
-## PSコントローラーで操作する際は、DS4Windowsなどのゲームパッド入力変換ソフトをご利用ください
-DS4WindowsダウンロードURL例：
-https://github.com/schmaldeo/DS4Windows/releases
-※上記GitHubの公開ソースを利用する場合、Latestをダウンロード→解凍して起動後、PSコントローラーを接続すればUEエディタ上で使用可能になります
+## PSコントローラーで操作する際は、DS4Windowsなどのゲームパッド入力変換ソフトをご利用ください</b>
+DS4WindowsダウンロードURL例：</b>
+https://github.com/schmaldeo/DS4Windows/releases</b>
+※上記GitHubの公開ソースを利用する場合、Latestをダウンロード→解凍して起動後、PSコントローラーを接続すればUEエディタ上で使用可能になります</b></b></b>
 
 
 ## 実装済み機能
