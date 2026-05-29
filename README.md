@@ -9,7 +9,7 @@ https://github.com/schmaldeo/DS4Windows/releases<br>
 ### 基本構成
 
 - Unreal Engine 5.3 / C++主体で実装
-- ターン制ローグライクダンジョンゲームの基礎システムを構築
+- ターン制ローグライクダンジョンRPGの基礎システムを構築
 - 共通処理は`Common`、ゲーム固有処理は`Game`配下へ分離
 - 入力、グリッド、フロア、ターン、敵、デバッグ描画の基礎機能を実装済み
 
