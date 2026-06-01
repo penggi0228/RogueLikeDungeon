@@ -23,27 +23,30 @@ void UCmnInputRouter::ApplyConfig(const UCmnInputConfig* Config)
     // Config未指定時は入力アセット参照をクリア
     if (!Config)
     {
-        IMC_Game = nullptr;
-        IMC_UI = nullptr;
+        IMC_Game = nullptr;                                 // 通常操作用IMC
+        IMC_UI = nullptr;                                      // UI操作用IMC
 
-        IA_Move = nullptr;
-        IA_Wait = nullptr;
-        IA_CameraLook = nullptr;
-        IA_CameraZoom = nullptr;
+        IA_Move = nullptr;                                     // 移動
+        IA_Wait = nullptr;                                      // 待機
+        IA_Attack = nullptr;                                   // 通常攻撃
+        IA_Interact = nullptr;                                 // インタラクト
+        IA_Menu = nullptr;                                    // メニュー
+        IA_CameraLook = nullptr;                          // カメラ視点操作
+        IA_CameraZoom = nullptr;                         // カメラズーム操作
 
-        IA_UI_Direction = nullptr;
-        IA_UI_Confirm = nullptr;
-        IA_UI_Close = nullptr;
-        IA_UI_Scroll = nullptr;
+        IA_UI_Direction = nullptr;                          // UI方向入力
+        IA_UI_Confirm = nullptr;                           // 決定
+        IA_UI_Close = nullptr;                               // メニュー閉じる 
+        IA_UI_Scroll = nullptr;                               // スクロール
 
-        IA_DebugCommandPrefix = nullptr;
-        IA_DebugCommandKeyboard1 = nullptr;
-        IA_DebugCommandKeyboard2 = nullptr;
-        IA_DebugCommandKeyboard3 = nullptr;
-        IA_DebugCommandKeyboard4 = nullptr;
-        IA_DebugCommandKeyboard5 = nullptr;
-        IA_DebugCommandGamepad1 = nullptr;
-        IA_DebugCommandGamepad2 = nullptr;
+        IA_DebugCommandPrefix = nullptr;            // デバッグコマンド開始キー
+        IA_DebugCommandKeyboard1 = nullptr;     // キーボード用デバッグコマンド第1キー
+        IA_DebugCommandKeyboard2 = nullptr;     // キーボード用デバッグコマンド第2キー
+        IA_DebugCommandKeyboard3 = nullptr;     // キーボード用デバッグコマンド第3キー
+        IA_DebugCommandKeyboard4 = nullptr;     // キーボード用デバッグコマンド第4キー
+        IA_DebugCommandKeyboard5 = nullptr;     // キーボード用デバッグコマンド第5キー
+        IA_DebugCommandGamepad1 = nullptr;     // ゲームパッド用デバッグコマンド第1キー
+        IA_DebugCommandGamepad2 = nullptr;     // ゲームパッド用デバッグコマンド第2キー
 
         return;
     }
@@ -55,6 +58,9 @@ void UCmnInputRouter::ApplyConfig(const UCmnInputConfig* Config)
     // ゲーム入力アセット参照を反映
     IA_Move = Config->IA_Move;
     IA_Wait = Config->IA_Wait;
+    IA_Attack = Config->IA_Attack;
+    IA_Interact = Config->IA_Interact;
+    IA_Menu = Config->IA_Menu;
     IA_CameraLook = Config->IA_CameraLook;
     IA_CameraZoom = Config->IA_CameraZoom;
 

@@ -65,6 +65,14 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Rld|Turn")
     void RequestWaitAction();
 
+    /** 通常攻撃行動を実行する */
+    UFUNCTION(BlueprintCallable, Category = "Rld|Action")
+    void RequestAttackAction();
+
+    /** インタラクト行動を実行する */
+    UFUNCTION(BlueprintCallable, Category = "Rld|Action")
+    void RequestInteractAction();
+
 public:
 
     // ----- カメラ方向取得 -----
@@ -113,6 +121,16 @@ private:
 
     /** 待機行動を処理する */
     void HandleWaitRequest();
+
+private:
+
+    // ----- 行動処理 -----
+
+    /** 通常攻撃行動を処理する */
+    void HandleAttackRequest();
+
+    /** インタラクト行動を処理する */
+    void HandleInteractRequest();
 
 private:
 

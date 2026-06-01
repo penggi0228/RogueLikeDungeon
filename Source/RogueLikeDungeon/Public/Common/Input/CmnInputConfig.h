@@ -42,6 +42,19 @@ public:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Common|Input|IA|Game")
     TObjectPtr<UInputAction> IA_Wait = nullptr;
 
+    // 通常攻撃用InputAction
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Common|Input|IA|Game")
+    TObjectPtr<UInputAction> IA_Attack = nullptr;
+
+    // インタラクト用InputAction
+    // 目の前のマスを調べる、宝箱を開けるなどの操作に使用
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Common|Input|IA|Game")
+    TObjectPtr<UInputAction> IA_Interact = nullptr;
+
+    // メニュー表示用InputAction
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Common|Input|IA|Game")
+    TObjectPtr<UInputAction> IA_Menu = nullptr;
+
     // カメラ視点操作用InputAction
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Common|Input|IA|Game")
     TObjectPtr<UInputAction> IA_CameraLook = nullptr;
