@@ -163,6 +163,18 @@ void ARldPlayerCharacter::RequestWaitAction()
     HandleWaitRequest();
 }
 
+/** 通常攻撃行動を実行する */
+void ARldPlayerCharacter::RequestAttackAction()
+{
+    HandleAttackRequest();
+}
+
+/** インタラクト行動を実行する */
+void ARldPlayerCharacter::RequestInteractAction()
+{
+    HandleInteractRequest();
+}
+
 /** カメラの平面前方向を取得する */
 FVector ARldPlayerCharacter::GetCameraPlanarForward() const
 {
@@ -470,6 +482,30 @@ void ARldPlayerCharacter::HandleWaitRequest()
         TEXT("HandleWaitRequest: 待機によりターンを進めました 現在ターン数=%d"),
         newTurnIndex
     );
+}
+
+/** 通常攻撃行動を処理する */
+void ARldPlayerCharacter::HandleAttackRequest()
+{
+    UE_LOG(
+        LogRldPlayerCharacter,
+        Log,
+        TEXT("HandleAttackRequest: 通常攻撃行動を受け付けました")
+    );
+
+    // TODO: 正面マスの状態に応じて通常攻撃または空振りを実行する
+}
+
+/** インタラクト行動を処理する */
+void ARldPlayerCharacter::HandleInteractRequest()
+{
+    UE_LOG(
+        LogRldPlayerCharacter,
+        Log,
+        TEXT("HandleInteractRequest: インタラクト行動を受け付けました")
+    );
+
+    // TODO: 正面マスの罠調査、宝箱、イベントなどを処理する
 }
 
 /** 初期カメラ設定を適用する */

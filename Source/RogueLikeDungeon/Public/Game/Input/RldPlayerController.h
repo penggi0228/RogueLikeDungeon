@@ -83,6 +83,15 @@ private:
     /** 待機入力を処理する */
     void OnWaitStarted(const FInputActionValue& Value);
 
+    /** 通常攻撃入力を処理する */
+    void OnAttackStarted(const FInputActionValue& Value);
+
+    /** インタラクト入力を処理する */
+    void OnInteractStarted(const FInputActionValue& Value);
+
+    /** メニュー入力を処理する */
+    void OnMenuStarted(const FInputActionValue& Value);
+
     /** カメラ視点入力を処理する */
     void OnCameraLookTriggered(const FInputActionValue& Value);
 

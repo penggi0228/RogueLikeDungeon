@@ -144,6 +144,39 @@ void ARldPlayerController::SetupInputComponent()
         UE_LOG(LogRldInput, Warning, TEXT("SetupInputComponent: IA_Waitがnull"));
     }
 
+    // 通常攻撃InputAction取得時はBind
+    if (InputRouter->IA_Attack)
+    {
+        UE_LOG(LogRldInput, Log, TEXT("SetupInputComponent: IA_AttackをBindします"));
+        EIC->BindAction(InputRouter->IA_Attack, ETriggerEvent::Started, this, &ARldPlayerController::OnAttackStarted);
+    }
+    else
+    {
+        UE_LOG(LogRldInput, Warning, TEXT("SetupInputComponent: IA_Attackがnull"));
+    }
+
+    // インタラクトInputAction取得時はBind
+    if (InputRouter->IA_Interact)
+    {
+        UE_LOG(LogRldInput, Log, TEXT("SetupInputComponent: IA_InteractをBindします"));
+        EIC->BindAction(InputRouter->IA_Interact, ETriggerEvent::Started, this, &ARldPlayerController::OnInteractStarted);
+    }
+    else
+    {
+        UE_LOG(LogRldInput, Warning, TEXT("SetupInputComponent: IA_Interactがnull"));
+    }
+
+    // メニューInputAction取得時はBind
+    if (InputRouter->IA_Menu)
+    {
+        UE_LOG(LogRldInput, Log, TEXT("SetupInputComponent: IA_MenuをBindします"));
+        EIC->BindAction(InputRouter->IA_Menu, ETriggerEvent::Started, this, &ARldPlayerController::OnMenuStarted);
+    }
+    else
+    {
+        UE_LOG(LogRldInput, Warning, TEXT("SetupInputComponent: IA_Menuがnull"));
+    }
+
     // カメラ視点InputAction取得時はBind
     if (InputRouter->IA_CameraLook)
     {
@@ -462,6 +495,117 @@ void ARldPlayerController::OnWaitStarted(const FInputActionValue& Value)
     );
 
     PlayerCharacter->RequestWaitAction();
+}
+
+/** 通常攻撃入力を処理する */
+void ARldPlayerController::OnAttackStarted(const FInputActionValue& Value)
+{
+    // 未使用引数
+    (void)Value;
+
+    // ゲームモード以外では通常攻撃処理しない
+    if (!InputRouter || !InputRouter->IsGameMode())
+    {
+        UE_LOG(LogRldInput, Verbose, TEXT("OnAttackStarted: ゲームモード以外のため処理しない"));
+        return;
+    }
+
+    // デバッグコマンド入力受付中は通常ゲーム入力を受け付けない
+    if (IsHiddenDebugCommandInputActive())
+    {
+        UE_LOG(LogRldInput, Verbose, TEXT("OnAttackStarted: デバッグコマンド入力受付中のため処理しない"));
+        return;
+    }
+
+    ARldPlayerCharacter* PlayerCharacter = GetRldPlayerCharacter();
+
+    // プレイヤーキャラクター未取得時は処理しない
+    if (!PlayerCharacter)
+    {
+        UE_LOG(LogRldInput, Warning, TEXT("OnAttackStarted: PlayerCharacterがnull"));
+        return;
+    }
+
+    StopMoveRepeat();
+
+    UE_LOG(
+        LogRldInput,
+        Log,
+        TEXT("OnAttackStarted: 通常攻撃入力を受け付けました")
+    );
+
+    PlayerCharacter->RequestAttackAction();
+}
+
+/** インタラクト入力を処理する */
+void ARldPlayerController::OnInteractStarted(const FInputActionValue& Value)
+{
+    // 未使用引数
+    (void)Value;
+
+    // ゲームモード以外ではインタラクト処理しない
+    if (!InputRouter || !InputRouter->IsGameMode())
+    {
+        UE_LOG(LogRldInput, Verbose, TEXT("OnInteractStarted: ゲームモード以外のため処理しない"));
+        return;
+    }
+
+    // デバッグコマンド入力受付中は通常ゲーム入力を受け付けない
+    if (IsHiddenDebugCommandInputActive())
+    {
+        UE_LOG(LogRldInput, Verbose, TEXT("OnInteractStarted: デバッグコマンド入力受付中のため処理しない"));
+        return;
+    }
+
+    ARldPlayerCharacter* PlayerCharacter = GetRldPlayerCharacter();
+
+    // プレイヤーキャラクター未取得時は処理しない
+    if (!PlayerCharacter)
+    {
+        UE_LOG(LogRldInput, Warning, TEXT("OnInteractStarted: PlayerCharacterがnull"));
+        return;
+    }
+
+    StopMoveRepeat();
+
+    UE_LOG(
+        LogRldInput,
+        Log,
+        TEXT("OnInteractStarted: インタラクト入力を受け付けました")
+    );
+
+    PlayerCharacter->RequestInteractAction();
+}
+
+/** メニュー入力を処理する */
+void ARldPlayerController::OnMenuStarted(const FInputActionValue& Value)
+{
+    // 未使用引数
+    (void)Value;
+
+    // ゲームモード以外ではメニュー処理しない
+    if (!InputRouter || !InputRouter->IsGameMode())
+    {
+        UE_LOG(LogRldInput, Verbose, TEXT("OnMenuStarted: ゲームモード以外のため処理しない"));
+        return;
+    }
+
+    // デバッグコマンド入力受付中は通常ゲーム入力を受け付けない
+    if (IsHiddenDebugCommandInputActive())
+    {
+        UE_LOG(LogRldInput, Verbose, TEXT("OnMenuStarted: デバッグコマンド入力受付中のため処理しない"));
+        return;
+    }
+
+    StopMoveRepeat();
+
+    UE_LOG(
+        LogRldInput,
+        Log,
+        TEXT("OnMenuStarted: メニュー入力を受け付けました")
+    );
+
+    // TODO: メインメニューWidgetを表示する
 }
 
 /** カメラ視点入力を処理する */
@@ -1542,9 +1686,12 @@ void ARldPlayerController::LoadAndApplyInputConfig()
         UE_LOG(
             LogRldInput,
             Log,
-            TEXT("LoadAndApplyInputConfig: 入力設定を適用しました 移動=%s 待機=%s 視点=%s ズーム=%s UI方向=%s UI決定=%s UI閉じる=%s UIスクロール=%s DebugPrefix=%s DebugKeyboard=%s DebugGamepad=%s"),
+            TEXT("LoadAndApplyInputConfig: 入力設定を適用しました 移動=%s 待機=%s 攻撃=%s インタラクト=%s メニュー=%s 視点=%s ズーム=%s UI方向=%s UI決定=%s UI閉じる=%s UIスクロール=%s DebugPrefix=%s DebugKeyboard=%s DebugGamepad=%s"),
             InputRouter->IA_Move ? TEXT("あり") : TEXT("なし"),
             InputRouter->IA_Wait ? TEXT("あり") : TEXT("なし"),
+            InputRouter->IA_Attack ? TEXT("あり") : TEXT("なし"),
+            InputRouter->IA_Interact ? TEXT("あり") : TEXT("なし"),
+            InputRouter->IA_Menu ? TEXT("あり") : TEXT("なし"),
             InputRouter->IA_CameraLook ? TEXT("あり") : TEXT("なし"),
             InputRouter->IA_CameraZoom ? TEXT("あり") : TEXT("なし"),
             InputRouter->IA_UI_Direction ? TEXT("あり") : TEXT("なし"),
