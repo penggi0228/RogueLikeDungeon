@@ -1,3 +1,5 @@
+# ゲームジャンル：ローグライクダンジョンRPG
+
 ## PSコントローラーで操作する際は、DS4Windowsなどのゲームパッド入力変換ソフトをご利用ください<br>
 DS4WindowsダウンロードURL例：<br>
 https://github.com/schmaldeo/DS4Windows/releases<br>
