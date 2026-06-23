@@ -85,14 +85,25 @@ public:
     }
 
     /**
- * 現在の戦闘ステータスを取得する
- *
- * @return 現在の戦闘ステータス
- */
+     * 現在の戦闘ステータスを取得する
+     *
+     * @return 現在の戦闘ステータス
+     */
     UFUNCTION(BlueprintPure, Category = "Rld|Enemy|Status")
     const FRldBattleStatus& GetCurrentBattleStatus() const
     {
         return currentBattleStatus;
+    }
+
+    /**
+     * 壁マスの通過可否を取得する
+     *
+     * @return 壁マスを通過できる場合はtrue
+     */
+    UFUNCTION(BlueprintPure, Category = "Rld|Enemy|Movement")
+    bool CanPassThroughWalls() const
+    {
+        return bCanPassThroughWalls;
     }
 
     /**
@@ -169,6 +180,10 @@ private:
     // 現在の戦闘ステータス
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Rld|Enemy|Status", meta = (AllowPrivateAccess = "true"))
     FRldBattleStatus currentBattleStatus;
+
+    // 壁マスの通過可否
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Rld|Enemy|Movement", meta = (AllowPrivateAccess = "true"))
+    bool bCanPassThroughWalls = false;
 
 private:
 

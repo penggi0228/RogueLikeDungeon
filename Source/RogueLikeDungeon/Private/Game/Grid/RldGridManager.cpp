@@ -181,7 +181,7 @@ bool ARldGridManager::IsOccupied(const FIntPoint& gridCoord) const
         TEXT("IsOccupied: グリッド座標=(%d,%d) 占有あり=%s 占有Actor=%s"),
         gridCoord.X,
         gridCoord.Y,
-        bIsOccupied ? TEXT("true") : TEXT("false"),
+        bIsOccupied ? TEXT("あり") : TEXT("なし"),
         bIsOccupied ? *GetNameSafe(foundActor->Get()) : TEXT("None")
     );
 
@@ -197,7 +197,7 @@ bool ARldGridManager::IsWalkable(const FIntPoint& gridCoord) const
         UE_LOG(
             LogRldGridManager,
             Verbose,
-            TEXT("IsWalkable: グリッド座標=(%d,%d) 通行可能=false 理由=範囲外"),
+            TEXT("IsWalkable: グリッド座標=(%d,%d) 通行可否=不可 理由=範囲外"),
             gridCoord.X,
             gridCoord.Y
         );
@@ -211,7 +211,7 @@ bool ARldGridManager::IsWalkable(const FIntPoint& gridCoord) const
         UE_LOG(
             LogRldGridManager,
             Verbose,
-            TEXT("IsWalkable: グリッド座標=(%d,%d) 通行可能=false 理由=床マスではない"),
+            TEXT("IsWalkable: グリッド座標=(%d,%d) 通行可否=不可 理由=床マスではない"),
             gridCoord.X,
             gridCoord.Y
         );
@@ -225,9 +225,10 @@ bool ARldGridManager::IsWalkable(const FIntPoint& gridCoord) const
         UE_LOG(
             LogRldGridManager,
             Verbose,
-            TEXT("IsWalkable: グリッド座標=(%d,%d) 通行可能=false 理由=占有中"),
+            TEXT("IsWalkable: グリッド座標=(%d,%d) 通行可否=不可 理由=占有中"),
             gridCoord.X,
             gridCoord.Y
+
         );
 
         return false;
@@ -236,12 +237,155 @@ bool ARldGridManager::IsWalkable(const FIntPoint& gridCoord) const
     UE_LOG(
         LogRldGridManager,
         Verbose,
-        TEXT("IsWalkable: グリッド座標=(%d,%d) 通行可能=true"),
+        TEXT("IsWalkable: グリッド座標=(%d,%d) 通行可否=可"),
         gridCoord.X,
         gridCoord.Y
     );
 
     return true;
+}
+
+/** 移動ルールに応じて指定グリッド座標へ進入可能か判定する */
+bool ARldGridManager::CanEnterCell(const FIntPoint& gridCoord, bool bCanPassThroughWalls) const
+{
+    // 範囲外マスへは進入不可
+    if (!IsInsideGrid(gridCoord))
+    {
+        UE_LOG(
+            LogRldGridManager,
+            Verbose,
+            TEXT("CanEnterCell: グリッド座標=(%d,%d) 壁通過可否=%s 進入可否=不可 理由=範囲外"),
+            gridCoord.X,
+            gridCoord.Y,
+            bCanPassThroughWalls ? TEXT("可") : TEXT("不可")
+        );
+
+        return false;
+    }
+
+    // 占有中のマスへは進入不可
+    if (IsOccupied(gridCoord))
+    {
+        UE_LOG(
+            LogRldGridManager,
+            Verbose,
+            TEXT("CanEnterCell: グリッド座標=(%d,%d) 壁通過可否=%s 進入可否=不可 理由=占有中"),
+            gridCoord.X,
+            gridCoord.Y,
+            bCanPassThroughWalls ? TEXT("可") : TEXT("不可")
+        );
+
+        return false;
+    }
+
+    // 床マスへは進入可能
+    if (IsFloorCell(gridCoord))
+    {
+        UE_LOG(
+            LogRldGridManager,
+            Verbose,
+            TEXT("CanEnterCell: グリッド座標=(%d,%d) 壁通過可否=%s 進入可否=可 理由=床マス"),
+            gridCoord.X,
+            gridCoord.Y,
+            bCanPassThroughWalls ? TEXT("可") : TEXT("不可")
+        );
+
+        return true;
+    }
+
+    // 壁通過可能なActorは壁マスへ進入可能
+    if (bCanPassThroughWalls && IsWallCell(gridCoord))
+    {
+        UE_LOG(
+            LogRldGridManager,
+            Verbose,
+            TEXT("CanEnterCell: グリッド座標=(%d,%d) 壁通過可否=%s 進入可否=可 理由=壁通過可能"),
+            gridCoord.X,
+            gridCoord.Y,
+            bCanPassThroughWalls ? TEXT("可") : TEXT("不可")
+        );
+
+        return true;
+    }
+
+    UE_LOG(
+        LogRldGridManager,
+        Verbose,
+        TEXT("CanEnterCell: グリッド座標=(%d,%d) 壁通過可否=%s 進入可否=不可 理由=進入不可マス"),
+        gridCoord.X,
+        gridCoord.Y,
+        bCanPassThroughWalls ? TEXT("可") : TEXT("不可")
+    );
+
+    return false;
+}
+
+/** 斜め移動や1マス近接攻撃で角の通過可否を判定する */
+bool ARldGridManager::CanPassDiagonalCorner(const FIntPoint& fromCoord, const FIntPoint& direction) const
+{
+    return CanPassDiagonalCornerWithWallPass(fromCoord, direction, false);
+}
+
+/** 移動ルールに応じて斜め移動や1マス近接攻撃で角の通過可否を判定する */
+bool ARldGridManager::CanPassDiagonalCornerWithWallPass(
+    const FIntPoint& fromCoord,
+    const FIntPoint& direction,
+    bool bCanPassThroughWalls
+) const
+{
+    const int32 absX = FMath::Abs(direction.X);
+    const int32 absY = FMath::Abs(direction.Y);
+
+    // 1マス方向以外はこの判定の対象外
+    if (absX > 1 || absY > 1 || (absX + absY) == 0)
+    {
+        UE_LOG(
+            LogRldGridManager,
+            Warning,
+            TEXT("CanPassDiagonalCornerWithWallPass: 1マス方向ではないため角通過不可として扱います 起点=(%d,%d) 方向=(%d,%d) 壁通過可否=%s 角通過可否=不可"),
+            fromCoord.X,
+            fromCoord.Y,
+            direction.X,
+            direction.Y,
+            bCanPassThroughWalls ? TEXT("可") : TEXT("不可")
+        );
+
+        return false;
+    }
+
+    // 斜め方向でない場合は角抜け判定不要
+    if (absX == 0 || absY == 0)
+    {
+        return true;
+    }
+
+    const FIntPoint horizontalSideCoord = fromCoord + FIntPoint(direction.X, 0);
+    const FIntPoint verticalSideCoord = fromCoord + FIntPoint(0, direction.Y);
+
+    const bool bHorizontalPassable = CanEnterCell(horizontalSideCoord, bCanPassThroughWalls);
+    const bool bVerticalPassable = CanEnterCell(verticalSideCoord, bCanPassThroughWalls);
+
+    const bool bCanPass = bHorizontalPassable && bVerticalPassable;
+
+    UE_LOG(
+        LogRldGridManager,
+        Verbose,
+        TEXT("CanPassDiagonalCornerWithWallPass: 起点=(%d,%d) 方向=(%d,%d) 壁通過可否=%s X方向隣接座標=(%d,%d) Y方向隣接座標=(%d,%d) X方向通過可否=%s Y方向通過可否=%s 角通過可否=%s"),
+        fromCoord.X,
+        fromCoord.Y,
+        direction.X,
+        direction.Y,
+        bCanPassThroughWalls ? TEXT("可") : TEXT("不可"),
+        horizontalSideCoord.X,
+        horizontalSideCoord.Y,
+        verticalSideCoord.X,
+        verticalSideCoord.Y,
+        bHorizontalPassable ? TEXT("可") : TEXT("不可"),
+        bVerticalPassable ? TEXT("可") : TEXT("不可"),
+        bCanPass ? TEXT("可") : TEXT("不可")
+    );
+
+    return bCanPass;
 }
 
 /** 指定グリッド座標の占有Actorを取得する */
@@ -332,6 +476,59 @@ bool ARldGridManager::RegisterOccupant(const FIntPoint& gridCoord, AActor* occup
         *GetNameSafe(occupantActor),
         gridCoord.X,
         gridCoord.Y
+    );
+
+    return true;
+}
+
+/** 移動ルールに応じてグリッド座標へ占有Actorを登録する */
+bool ARldGridManager::RegisterOccupantWithWallPass(
+    const FIntPoint& gridCoord,
+    AActor* occupantActor,
+    bool bCanPassThroughWalls
+)
+{
+    // 登録対象Actorが無効な場合は登録しない
+    if (!occupantActor)
+    {
+        UE_LOG(
+            LogRldGridManager,
+            Warning,
+            TEXT("RegisterOccupantWithWallPass: 占有Actorがnullのため登録しません グリッド座標=(%d,%d) 壁通過可否=%s"),
+            gridCoord.X,
+            gridCoord.Y,
+            bCanPassThroughWalls ? TEXT("可") : TEXT("不可")
+        );
+
+        return false;
+    }
+
+    // 登録ルール上、進入不可のマスへは登録しない
+    if (!CanEnterCell(gridCoord, bCanPassThroughWalls))
+    {
+        UE_LOG(
+            LogRldGridManager,
+            Warning,
+            TEXT("RegisterOccupantWithWallPass: Actor=%s 登録先へ進入できないため登録しません グリッド座標=(%d,%d) 壁通過可否=%s"),
+            *GetNameSafe(occupantActor),
+            gridCoord.X,
+            gridCoord.Y,
+            bCanPassThroughWalls ? TEXT("可") : TEXT("不可")
+        );
+
+        return false;
+    }
+
+    occupantMap.Add(gridCoord, occupantActor);
+
+    UE_LOG(
+        LogRldGridManager,
+        Verbose,
+        TEXT("RegisterOccupantWithWallPass: Actor=%s 登録しました グリッド座標=(%d,%d) 壁通過可否=%s"),
+        *GetNameSafe(occupantActor),
+        gridCoord.X,
+        gridCoord.Y,
+        bCanPassThroughWalls ? TEXT("可") : TEXT("不可")
     );
 
     return true;
@@ -504,6 +701,88 @@ bool ARldGridManager::MoveOccupant(
         fromGridCoord.Y,
         toGridCoord.X,
         toGridCoord.Y
+    );
+
+    return true;
+}
+
+/** 移動ルールに応じて占有Actorを別グリッド座標へ移動する */
+bool ARldGridManager::MoveOccupantWithWallPass(
+    const FIntPoint& fromGridCoord,
+    const FIntPoint& toGridCoord,
+    AActor* occupantActor,
+    bool bCanPassThroughWalls
+)
+{
+    // 移動対象Actorが無効な場合は移動しない
+    if (!occupantActor)
+    {
+        UE_LOG(
+            LogRldGridManager,
+            Warning,
+            TEXT("MoveOccupantWithWallPass: 占有Actorがnullのため移動しません 移動前=(%d,%d) 移動先=(%d,%d) 壁通過可否=%s"),
+            fromGridCoord.X,
+            fromGridCoord.Y,
+            toGridCoord.X,
+            toGridCoord.Y,
+            bCanPassThroughWalls ? TEXT("可") : TEXT("不可")
+        );
+
+        return false;
+    }
+
+    const TWeakObjectPtr<AActor>* foundActor = occupantMap.Find(fromGridCoord);
+
+    // 移動前座標に移動対象Actorが登録されていない場合は移動しない
+    if (!foundActor || !foundActor->IsValid() || foundActor->Get() != occupantActor)
+    {
+        UE_LOG(
+            LogRldGridManager,
+            Warning,
+            TEXT("MoveOccupantWithWallPass: Actor=%s 移動前登録が不正のため移動しません 移動前=(%d,%d) 移動先=(%d,%d) 壁通過可否=%s 登録済みActor=%s"),
+            *GetNameSafe(occupantActor),
+            fromGridCoord.X,
+            fromGridCoord.Y,
+            toGridCoord.X,
+            toGridCoord.Y,
+            bCanPassThroughWalls ? TEXT("可") : TEXT("不可"),
+            (foundActor && foundActor->IsValid()) ? *GetNameSafe(foundActor->Get()) : TEXT("None")
+        );
+
+        return false;
+    }
+
+    // 移動ルール上、進入不可のマスへは移動しない
+    if (!CanEnterCell(toGridCoord, bCanPassThroughWalls))
+    {
+        UE_LOG(
+            LogRldGridManager,
+            Warning,
+            TEXT("MoveOccupantWithWallPass: Actor=%s 移動先へ進入できないため移動しません 移動前=(%d,%d) 移動先=(%d,%d) 壁通過可否=%s"),
+            *GetNameSafe(occupantActor),
+            fromGridCoord.X,
+            fromGridCoord.Y,
+            toGridCoord.X,
+            toGridCoord.Y,
+            bCanPassThroughWalls ? TEXT("可") : TEXT("不可")
+        );
+
+        return false;
+    }
+
+    occupantMap.Remove(fromGridCoord);
+    occupantMap.Add(toGridCoord, occupantActor);
+
+    UE_LOG(
+        LogRldGridManager,
+        Verbose,
+        TEXT("MoveOccupantWithWallPass: Actor=%s 移動しました 移動前=(%d,%d) 移動先=(%d,%d) 壁通過可否=%s"),
+        *GetNameSafe(occupantActor),
+        fromGridCoord.X,
+        fromGridCoord.Y,
+        toGridCoord.X,
+        toGridCoord.Y,
+        bCanPassThroughWalls ? TEXT("可") : TEXT("不可")
     );
 
     return true;

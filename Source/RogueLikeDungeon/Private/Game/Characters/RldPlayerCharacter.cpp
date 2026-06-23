@@ -494,6 +494,25 @@ void ARldPlayerCharacter::HandleMoveRequest(const FIntPoint& Direction)
         return;
     }
 
+    // 斜め移動時に角を通れない場合は移動しない
+    if (!gridManager->CanPassDiagonalCorner(currentCoord, Direction))
+    {
+        UE_LOG(
+            LogRldPlayerCharacter,
+            Log,
+            TEXT("HandleMoveRequest: Actor=%s 角を通過できないため斜め移動を中止します 現在の座標=(%d,%d) 入力方向=(%d,%d) 次の座標=(%d,%d) 角通過可否=不可"),
+            *GetNameSafe(this),
+            currentCoord.X,
+            currentCoord.Y,
+            Direction.X,
+            Direction.Y,
+            nextGridCoord.X,
+            nextGridCoord.Y
+        );
+
+        return;
+    }
+
     // 占有情報を移動
     if (!gridManager->MoveOccupant(currentCoord, nextGridCoord, this))
     {
@@ -694,6 +713,39 @@ void ARldPlayerCharacter::HandleAttackRequest()
     }
 
     const FIntPoint targetGridCoord = currentCoord + currentFacingGridDir;
+
+    // 斜め1マス攻撃が角越しになる場合は空振りとして扱う
+    if (!gridManager->CanPassDiagonalCorner(currentCoord, currentFacingGridDir))
+    {
+        UE_LOG(
+            LogRldPlayerCharacter,
+            Log,
+            TEXT("HandleAttackRequest: Actor=%s 角を通過できないため通常攻撃は空振りしました 現在の座標=(%d,%d) 向き=(%d,%d) 対象座標=(%d,%d) 角通過可否=不可"),
+            *GetNameSafe(this),
+            currentCoord.X,
+            currentCoord.Y,
+            currentFacingGridDir.X,
+            currentFacingGridDir.Y,
+            targetGridCoord.X,
+            targetGridCoord.Y
+        );
+
+        // TurnManager未取得時はターン進行しない
+        if (!turnManager)
+        {
+            UE_LOG(
+                LogRldPlayerCharacter,
+                Warning,
+                TEXT("HandleAttackRequest: Actor=%s TurnManager未取得のためターン進行を行いません"),
+                *GetNameSafe(this)
+            );
+
+            return;
+        }
+
+        turnManager->AdvanceTurnByPlayerAction(this, ERldActionType::Attack);
+        return;
+    }
 
     bool bTargetCoordInGrid = false;
     AActor* targetActor = ResolveAttackTargetActor(targetGridCoord, bTargetCoordInGrid);

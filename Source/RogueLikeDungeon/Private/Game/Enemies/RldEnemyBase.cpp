@@ -70,15 +70,16 @@ void ARldEnemyBase::BeginPlay()
         );
 
         // 初期位置を占有登録
-        if (!gridManager->RegisterOccupant(initialSpawnGridCoord, this))
+        if (!gridManager->RegisterOccupantWithWallPass(initialSpawnGridCoord, this, bCanPassThroughWalls))
         {
             UE_LOG(
                 LogRldEnemyBase,
                 Warning,
-                TEXT("BeginPlay: Actor=%s 初期位置の占有登録に失敗しました グリッド座標=(%d,%d)"),
+                TEXT("BeginPlay: Actor=%s 初期位置の占有登録に失敗しました グリッド座標=(%d,%d) 壁通過可否=%s"),
                 *GetNameSafe(this),
                 initialSpawnGridCoord.X,
-                initialSpawnGridCoord.Y
+                initialSpawnGridCoord.Y,
+                bCanPassThroughWalls ? TEXT("可") : TEXT("不可")
             );
         }
     }
@@ -133,18 +134,52 @@ void ARldEnemyBase::ExecuteTurn_Implementation()
     const int32 distanceX = FMath::Abs(playerGridCoord.X - currentEnemyGridCoord.X);
     const int32 distanceY = FMath::Abs(playerGridCoord.Y - currentEnemyGridCoord.Y);
 
-    // プレイヤーに隣接している場合は攻撃予定ログだけ出す
-    if ((distanceX + distanceY) == 1)
+    // プレイヤーに8方向隣接している場合は攻撃予定ログだけ出す
+    const bool bIsPlayerAdjacent =
+        distanceX <= 1 &&
+        distanceY <= 1 &&
+        (distanceX + distanceY) > 0;
+
+    if (bIsPlayerAdjacent)
     {
+        const FIntPoint attackDirection = playerGridCoord - currentEnemyGridCoord;
+
+        // 斜め攻撃時に角を通過できない場合は攻撃しない
+        if (!gridManager->CanPassDiagonalCornerWithWallPass(
+            currentEnemyGridCoord,
+            attackDirection,
+            bCanPassThroughWalls
+        ))
+        {
+            UE_LOG(
+                LogRldEnemyBase,
+                Log,
+                TEXT("ExecuteTurn: Actor=%s 角を通過できないためプレイヤーへ攻撃しません エネミー座標=(%d,%d) プレイヤー座標=(%d,%d) 攻撃方向=(%d,%d) 角通過可否=不可 壁通過可否=%s"),
+                *GetNameSafe(this),
+                currentEnemyGridCoord.X,
+                currentEnemyGridCoord.Y,
+                playerGridCoord.X,
+                playerGridCoord.Y,
+                attackDirection.X,
+                attackDirection.Y,
+                bCanPassThroughWalls ? TEXT("可") : TEXT("不可")
+            );
+
+            return;
+        }
+
         UE_LOG(
             LogRldEnemyBase,
             Log,
-            TEXT("ExecuteTurn: Actor=%s プレイヤーに隣接しているため攻撃予定です エネミー座標=(%d,%d) プレイヤー座標=(%d,%d)"),
+            TEXT("ExecuteTurn: Actor=%s プレイヤーに隣接しているため攻撃予定です エネミー座標=(%d,%d) プレイヤー座標=(%d,%d) 攻撃方向=(%d,%d) 壁通過可否=%s"),
             *GetNameSafe(this),
             currentEnemyGridCoord.X,
             currentEnemyGridCoord.Y,
             playerGridCoord.X,
-            playerGridCoord.Y
+            playerGridCoord.Y,
+            attackDirection.X,
+            attackDirection.Y,
+            bCanPassThroughWalls ? TEXT("可") : TEXT("不可")
         );
 
         return;
@@ -158,10 +193,11 @@ void ARldEnemyBase::ExecuteTurn_Implementation()
         UE_LOG(
             LogRldEnemyBase,
             Log,
-            TEXT("ExecuteTurn: Actor=%s 移動先を決定できないため待機します 現在の座標=(%d,%d)"),
+            TEXT("ExecuteTurn: Actor=%s 移動先を決定できないため待機します 現在の座標=(%d,%d) 壁通過可否=%s"),
             *GetNameSafe(this),
             currentEnemyGridCoord.X,
-            currentEnemyGridCoord.Y
+            currentEnemyGridCoord.Y,
+            bCanPassThroughWalls ? TEXT("可") : TEXT("不可")
         );
 
         return;
@@ -173,42 +209,76 @@ void ARldEnemyBase::ExecuteTurn_Implementation()
         UE_LOG(
             LogRldEnemyBase,
             Log,
-            TEXT("ExecuteTurn: Actor=%s 次の座標にプレイヤーがいるため移動せず待機します 次の座標=(%d,%d)"),
+            TEXT("ExecuteTurn: Actor=%s 次の座標にプレイヤーがいるため移動せず待機します 次の座標=(%d,%d) 壁通過可否=%s"),
             *GetNameSafe(this),
             nextGridCoord.X,
-            nextGridCoord.Y
+            nextGridCoord.Y,
+            bCanPassThroughWalls ? TEXT("可") : TEXT("不可")
         );
 
         return;
     }
 
-    // 通行不可なら待機
-    if (!gridManager->IsWalkable(nextGridCoord))
+    const FIntPoint moveDirection = nextGridCoord - currentEnemyGridCoord;
+
+    // 斜め移動時に角を通過できない場合は待機
+    if (!gridManager->CanPassDiagonalCornerWithWallPass(
+        currentEnemyGridCoord,
+        moveDirection,
+        bCanPassThroughWalls
+    ))
     {
         UE_LOG(
             LogRldEnemyBase,
             Log,
-            TEXT("ExecuteTurn: Actor=%s 通行不可のため待機します 次の座標=(%d,%d)"),
+            TEXT("ExecuteTurn: Actor=%s 角を通過できないため待機します 現在の座標=(%d,%d) 次の座標=(%d,%d) 移動方向=(%d,%d) 角通過可否=不可 壁通過可否=%s"),
             *GetNameSafe(this),
+            currentEnemyGridCoord.X,
+            currentEnemyGridCoord.Y,
             nextGridCoord.X,
-            nextGridCoord.Y
+            nextGridCoord.Y,
+            moveDirection.X,
+            moveDirection.Y,
+            bCanPassThroughWalls ? TEXT("可") : TEXT("不可")
         );
 
         return;
     }
 
-    // 占有情報を移動
-    if (!gridManager->MoveOccupant(currentEnemyGridCoord, nextGridCoord, this))
+    // 移動ルール上、進入不可なら待機
+    if (!gridManager->CanEnterCell(nextGridCoord, bCanPassThroughWalls))
+    {
+        UE_LOG(
+            LogRldEnemyBase,
+            Log,
+            TEXT("ExecuteTurn: Actor=%s 進入不可のため待機します 次の座標=(%d,%d) 壁通過可否=%s"),
+            *GetNameSafe(this),
+            nextGridCoord.X,
+            nextGridCoord.Y,
+            bCanPassThroughWalls ? TEXT("可") : TEXT("不可")
+        );
+
+        return;
+    }
+
+    // 移動ルールに応じて占有情報を移動
+    if (!gridManager->MoveOccupantWithWallPass(
+        currentEnemyGridCoord,
+        nextGridCoord,
+        this,
+        bCanPassThroughWalls
+    ))
     {
         UE_LOG(
             LogRldEnemyBase,
             Warning,
-            TEXT("ExecuteTurn: Actor=%s 占有情報の移動に失敗したため移動を中止します 現在の座標=(%d,%d) 次の座標=(%d,%d)"),
+            TEXT("ExecuteTurn: Actor=%s 占有情報の移動に失敗したため移動を中止します 現在の座標=(%d,%d) 次の座標=(%d,%d) 壁通過可否=%s"),
             *GetNameSafe(this),
             currentEnemyGridCoord.X,
             currentEnemyGridCoord.Y,
             nextGridCoord.X,
-            nextGridCoord.Y
+            nextGridCoord.Y,
+            bCanPassThroughWalls ? TEXT("可") : TEXT("不可")
         );
 
         return;
@@ -220,10 +290,11 @@ void ARldEnemyBase::ExecuteTurn_Implementation()
     UE_LOG(
         LogRldEnemyBase,
         Log,
-        TEXT("ExecuteTurn: Actor=%s 移動完了 グリッド座標=(%d,%d)"),
+        TEXT("ExecuteTurn: Actor=%s 移動完了 グリッド座標=(%d,%d) 壁通過可否=%s"),
         *GetNameSafe(this),
         nextGridCoord.X,
-        nextGridCoord.Y
+        nextGridCoord.Y,
+        bCanPassThroughWalls ? TEXT("可") : TEXT("不可")
     );
 }
 
@@ -269,15 +340,16 @@ void ARldEnemyBase::ResetToInitialState()
     SetCurrentGridCoord(initialGridCoord);
     SetActorLocation(gridManager->GridToWorld(initialGridCoord));
 
-    if (!gridManager->RegisterOccupant(initialGridCoord, this))
+    if (!gridManager->RegisterOccupantWithWallPass(initialGridCoord, this, bCanPassThroughWalls))
     {
         UE_LOG(
             LogRldEnemyBase,
             Warning,
-            TEXT("ResetToInitialState: Actor=%s 初期位置の占有登録に失敗しました 初期座標=(%d,%d)"),
+            TEXT("ResetToInitialState: Actor=%s 初期位置の占有登録に失敗しました 初期座標=(%d,%d) 壁通過可否=%s"),
             *GetNameSafe(this),
             initialGridCoord.X,
-            initialGridCoord.Y
+            initialGridCoord.Y,
+            bCanPassThroughWalls ? TEXT("可") : TEXT("不可")
         );
     }
 
@@ -344,11 +416,12 @@ void ARldEnemyBase::LoadEnemyStatusDefinition()
     }
 
     currentBattleStatus = foundDefinition->battleStatus;
+    bCanPassThroughWalls = foundDefinition->bCanPassThroughWalls;
 
     UE_LOG(
         LogRldEnemyBase,
         Log,
-        TEXT("LoadEnemyStatusDefinition: データロード完了 Actor=%s RowName=%s エネミーID=%s 表示名=%s 最大HP=%d 最大MP=%d 攻撃力=%d 防御力=%d"),
+        TEXT("LoadEnemyStatusDefinition: データロード完了 Actor=%s RowName=%s エネミーID=%s 表示名=%s 最大HP=%d 最大MP=%d 攻撃力=%d 防御力=%d 壁通過可否=%s"),
         *GetNameSafe(this),
         *enemyStatusRowName.ToString(),
         *foundDefinition->enemyId.ToString(),
@@ -356,7 +429,8 @@ void ARldEnemyBase::LoadEnemyStatusDefinition()
         currentBattleStatus.maxHP,
         currentBattleStatus.maxMP,
         currentBattleStatus.attackPower,
-        currentBattleStatus.defensePower
+        currentBattleStatus.defensePower,
+        bCanPassThroughWalls ? TEXT("可") : TEXT("不可")
     );
 }
 
@@ -466,15 +540,20 @@ void ARldEnemyBase::ResolvePlayerCharacter()
 /** プレイヤー方向への移動候補を求める */
 bool ARldEnemyBase::TryBuildNextMoveTarget(FIntPoint& outTargetGridCoord) const
 {
-    outTargetGridCoord = GetCurrentGridCoord();
+    const FIntPoint currentEnemyGridCoord = GetCurrentGridCoord();
+    outTargetGridCoord = currentEnemyGridCoord;
 
     if (!playerCharacter)
     {
         return false;
     }
 
+    if (!gridManager)
+    {
+        return false;
+    }
+
     const FIntPoint playerGridCoord = playerCharacter->GetCurrentGridCoord();
-    const FIntPoint currentEnemyGridCoord = GetCurrentGridCoord();
     const FIntPoint delta = playerGridCoord - currentEnemyGridCoord;
 
     const int32 absX = FMath::Abs(delta.X);
@@ -486,15 +565,121 @@ bool ARldEnemyBase::TryBuildNextMoveTarget(FIntPoint& outTargetGridCoord) const
         return false;
     }
 
-    // 主軸優先で1マス分だけ移動候補を決める
-    if (absX >= absY)
+    const int32 moveX = FMath::Clamp(delta.X, -1, 1);
+    const int32 moveY = FMath::Clamp(delta.Y, -1, 1);
+
+    TArray<FIntPoint> candidateDirections;
+
+    // まずはプレイヤー方向への8方向移動を最優先にする
+    candidateDirections.Add(FIntPoint(moveX, moveY));
+
+    // 斜め移動できない場合のため、軸方向の移動候補も追加する
+    if (moveX != 0 && moveY != 0)
     {
-        outTargetGridCoord.X += (delta.X > 0) ? 1 : -1;
-    }
-    else
-    {
-        outTargetGridCoord.Y += (delta.Y > 0) ? 1 : -1;
+        if (absX >= absY)
+        {
+            candidateDirections.Add(FIntPoint(moveX, 0));
+            candidateDirections.Add(FIntPoint(0, moveY));
+        }
+        else
+        {
+            candidateDirections.Add(FIntPoint(0, moveY));
+            candidateDirections.Add(FIntPoint(moveX, 0));
+        }
     }
 
-    return true;
+    for (const FIntPoint& candidateDirection : candidateDirections)
+    {
+        // 無効な方向は候補から除外
+        if (candidateDirection == FIntPoint::ZeroValue)
+        {
+            continue;
+        }
+
+        const FIntPoint candidateGridCoord = currentEnemyGridCoord + candidateDirection;
+
+        // プレイヤーのいるマスへは進入しない
+        if (candidateGridCoord == playerGridCoord)
+        {
+            continue;
+        }
+
+        // 斜め移動時に角を通過できない場合は候補から除外
+        if (!gridManager->CanPassDiagonalCornerWithWallPass(
+            currentEnemyGridCoord,
+            candidateDirection,
+            bCanPassThroughWalls
+        ))
+        {
+            UE_LOG(
+                LogRldEnemyBase,
+                Verbose,
+                TEXT("TryBuildNextMoveTarget: Actor=%s 角を通過できないため移動候補から除外します 現在の座標=(%d,%d) 候補方向=(%d,%d) 候補座標=(%d,%d) 角通過可否=不可 壁通過可否=%s"),
+                *GetNameSafe(this),
+                currentEnemyGridCoord.X,
+                currentEnemyGridCoord.Y,
+                candidateDirection.X,
+                candidateDirection.Y,
+                candidateGridCoord.X,
+                candidateGridCoord.Y,
+                bCanPassThroughWalls ? TEXT("可") : TEXT("不可")
+            );
+
+            continue;
+        }
+
+        // 移動ルール上、進入不可のマスは候補から除外
+        if (!gridManager->CanEnterCell(candidateGridCoord, bCanPassThroughWalls))
+        {
+            UE_LOG(
+                LogRldEnemyBase,
+                Verbose,
+                TEXT("TryBuildNextMoveTarget: Actor=%s 進入不可のため移動候補から除外します 現在の座標=(%d,%d) 候補方向=(%d,%d) 候補座標=(%d,%d) 壁通過可否=%s"),
+                *GetNameSafe(this),
+                currentEnemyGridCoord.X,
+                currentEnemyGridCoord.Y,
+                candidateDirection.X,
+                candidateDirection.Y,
+                candidateGridCoord.X,
+                candidateGridCoord.Y,
+                bCanPassThroughWalls ? TEXT("可") : TEXT("不可")
+            );
+
+            continue;
+        }
+
+        outTargetGridCoord = candidateGridCoord;
+
+        UE_LOG(
+            LogRldEnemyBase,
+            Verbose,
+            TEXT("TryBuildNextMoveTarget: Actor=%s 移動候補を決定しました 現在の座標=(%d,%d) プレイヤー座標=(%d,%d) 移動方向=(%d,%d) 移動候補=(%d,%d) 壁通過可否=%s"),
+            *GetNameSafe(this),
+            currentEnemyGridCoord.X,
+            currentEnemyGridCoord.Y,
+            playerGridCoord.X,
+            playerGridCoord.Y,
+            candidateDirection.X,
+            candidateDirection.Y,
+            outTargetGridCoord.X,
+            outTargetGridCoord.Y,
+            bCanPassThroughWalls ? TEXT("可") : TEXT("不可")
+        );
+
+        return true;
+    }
+
+    UE_LOG(
+        LogRldEnemyBase,
+        Verbose,
+        TEXT("TryBuildNextMoveTarget: Actor=%s 有効な移動候補がありません 現在の座標=(%d,%d) プレイヤー座標=(%d,%d) 壁通過可否=%s"),
+        *GetNameSafe(this),
+        currentEnemyGridCoord.X,
+        currentEnemyGridCoord.Y,
+        playerGridCoord.X,
+        playerGridCoord.Y,
+        bCanPassThroughWalls ? TEXT("可") : TEXT("不可")
+    );
+
+    return false;
 }

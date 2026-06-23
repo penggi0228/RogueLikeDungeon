@@ -29,3 +29,6 @@ Thumbs.db
 
 # Optional
 Build/
+
+# 外部アセット
+Content/Fab/

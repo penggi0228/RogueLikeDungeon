@@ -97,6 +97,18 @@ private:
     /** 自動生成フロア用スポーンSeedを解決する */
     int32 ResolveProceduralEnemySpawnSeed(const FRldFloorDefinition& floorDefinition) const;
 
+    /**
+     * 自動生成フロア用エネミークラスを重みに応じて選択する
+     *
+     * @param floorDefinition フロア定義
+     * @param randomStream 乱数ストリーム
+     * @return 選択されたエネミークラス
+     */
+    TSubclassOf<ARldEnemyBase> SelectProceduralEnemyClass(
+        const FRldFloorDefinition& floorDefinition,
+        FRandomStream& randomStream
+    ) const;
+
 private:
 
     // ----- エネミー一覧 -----

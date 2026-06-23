@@ -91,6 +91,10 @@ struct ROGUELIKEDUNGEON_API FRldEnemyStatusDefinition : public FTableRowBase
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rld|Enemy|Basic")
     FText displayName;
 
+    // 壁マスを通過できるか
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rld|Enemy|Movement")
+    bool bCanPassThroughWalls = false;
+
     // 戦闘用基本ステータス
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rld|Enemy|Status")
     FRldBattleStatus battleStatus;

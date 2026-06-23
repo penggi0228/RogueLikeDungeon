@@ -10,6 +10,23 @@
 class ARldEnemyBase;
 
 /**
+ * 自動生成フロア用エネミー出現候補
+ */
+USTRUCT(BlueprintType)
+struct ROGUELIKEDUNGEON_API FRldProceduralEnemySpawnEntry
+{
+    GENERATED_BODY()
+
+    // 出現候補のエネミークラス
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rld|Floor|Enemy")
+    TSubclassOf<ARldEnemyBase> enemyClass = nullptr;
+
+    // 出現重み
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rld|Floor|Enemy", meta = (ClampMin = "1"))
+    int32 spawnWeight = 1;
+};
+
+/**
  * フロア定義DataTable用構造体
  */
 USTRUCT(BlueprintType)
@@ -49,27 +66,27 @@ public:
 
     // ----- 自動生成設定 -----
 
-    // セクション数最小
+    // 最小セクション数
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rld|Floor|ProcGen", meta = (ClampMin = "1"))
     int32 minSectionCount = 4;
 
-    // セクション数最大
+    // 最大セクション数
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rld|Floor|ProcGen", meta = (ClampMin = "1"))
     int32 maxSectionCount = 7;
 
-    // セクション横幅最小
+    // 最小セクション横幅
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rld|Floor|ProcGen", meta = (ClampMin = "3"))
     int32 minSectionWidth = 4;
 
-    // セクション横幅最大
+    // 最大セクション横幅
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rld|Floor|ProcGen", meta = (ClampMin = "3"))
     int32 maxSectionWidth = 8;
 
-    // セクション縦幅最小
+    // 最小セクション縦幅
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rld|Floor|ProcGen", meta = (ClampMin = "3"))
     int32 minSectionHeight = 4;
 
-    // セクション縦幅最大
+    // 最大セクション縦幅
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rld|Floor|ProcGen", meta = (ClampMin = "3"))
     int32 maxSectionHeight = 8;
 
@@ -85,15 +102,15 @@ public:
 
     // ----- エネミー自動生成設定 -----
 
-    // 自動生成フロアで使用するエネミークラス
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rld|Floor|ProcGen|Enemy")
-    TSubclassOf<ARldEnemyBase> proceduralEnemyClass = nullptr;
+    // 自動生成で出現候補にするエネミークラス配列
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rld|Floor|Enemy")
+    TArray<FRldProceduralEnemySpawnEntry> proceduralEnemySpawnEntries;
 
-    // 自動生成フロアのエネミー数最小
+    // 自動生成フロアの最小エネミー数
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rld|Floor|ProcGen|Enemy", meta = (ClampMin = "0"))
     int32 minProceduralEnemyCount = 0;
 
-    // 自動生成フロアのエネミー数最大
+    // 自動生成フロアの最大エネミー数
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rld|Floor|ProcGen|Enemy", meta = (ClampMin = "0"))
     int32 maxProceduralEnemyCount = 3;
 
