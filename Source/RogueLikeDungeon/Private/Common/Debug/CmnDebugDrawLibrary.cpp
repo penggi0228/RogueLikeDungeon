@@ -7,9 +7,7 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogCmnDebugDrawLibrary, Log, All);
 
-/**
- * 単一グリッドマスをデバッグ描画する
- */
+/** 単一グリッドマスをデバッグ描画する */
 void UCmnDebugDrawLibrary::DrawGridCell(
     UWorld* world,
     const FCmnGridDefinition& gridDefinition,
@@ -24,6 +22,7 @@ void UCmnDebugDrawLibrary::DrawGridCell(
             Warning,
             TEXT("DrawGridCell: Worldがnullのため描画しません")
         );
+
         return;
     }
 
@@ -59,9 +58,7 @@ void UCmnDebugDrawLibrary::DrawGridCell(
     );
 }
 
-/**
- * 複数グリッドマスをデバッグ描画する
- */
+/** 複数グリッドマスをデバッグ描画する */
 void UCmnDebugDrawLibrary::DrawGridCells(
     UWorld* world,
     const FCmnGridDefinition& gridDefinition,
@@ -76,22 +73,26 @@ void UCmnDebugDrawLibrary::DrawGridCells(
             Warning,
             TEXT("DrawGridCells: Worldがnullのため描画しません")
         );
+
         return;
     }
 
     for (const FIntPoint& gridCoord : gridCoords)
     {
-        DrawGridCell(world, gridDefinition, gridCoord, drawStyle);
+        DrawGridCell(
+            world,
+            gridDefinition,
+            gridCoord,
+            drawStyle
+        );
     }
 }
 
-/**
- * 部屋矩形の外枠をデバッグ描画する
- */
-void UCmnDebugDrawLibrary::DrawGridRoomBounds(
+/** セクション矩形の外枠をデバッグ描画する */
+void UCmnDebugDrawLibrary::DrawGridSectionBounds(
     UWorld* world,
     const FCmnGridDefinition& gridDefinition,
-    const FCmnGridRoom& room,
+    const FCmnGridSection& section,
     const FCmnDebugDrawStyle& drawStyle
 )
 {
@@ -100,42 +101,48 @@ void UCmnDebugDrawLibrary::DrawGridRoomBounds(
         UE_LOG(
             LogCmnDebugDrawLibrary,
             Warning,
-            TEXT("DrawGridRoomBounds: Worldがnullのため描画しません")
+            TEXT("DrawGridSectionBounds: Worldがnullのため描画しません")
         );
+
         return;
     }
 
-    if (!room.IsValid())
+    if (!section.IsValid())
     {
         UE_LOG(
             LogCmnDebugDrawLibrary,
             Warning,
-            TEXT("DrawGridRoomBounds: 部屋情報が無効のため描画しません")
+            TEXT("DrawGridSectionBounds: セクション情報が無効のため描画しません セクション=(Left=%d Top=%d Width=%d Height=%d)"),
+            section.left,
+            section.top,
+            section.width,
+            section.height
         );
+
         return;
     }
 
     const FVector topLeft = BuildDebugWorldLocation(
         gridDefinition,
-        FIntPoint(room.left, room.top),
+        FIntPoint(section.left, section.top),
         drawStyle.zOffset
     );
 
     const FVector topRight = BuildDebugWorldLocation(
         gridDefinition,
-        FIntPoint(room.GetRight(), room.top),
+        FIntPoint(section.GetRight(), section.top),
         drawStyle.zOffset
     );
 
     const FVector bottomLeft = BuildDebugWorldLocation(
         gridDefinition,
-        FIntPoint(room.left, room.GetBottom()),
+        FIntPoint(section.left, section.GetBottom()),
         drawStyle.zOffset
     );
 
     const FVector bottomRight = BuildDebugWorldLocation(
         gridDefinition,
-        FIntPoint(room.GetRight(), room.GetBottom()),
+        FIntPoint(section.GetRight(), section.GetBottom()),
         drawStyle.zOffset
     );
 

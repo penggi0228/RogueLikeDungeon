@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Common/ProcGen/CmnGridRoom.h"
+#include "Common/ProcGen/CmnGridSection.h"
 #include "CmnGridLayoutTypes.generated.h"
 
 /**
@@ -32,9 +32,9 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cmn|ProcGen")
     TArray<FIntPoint> wallCells;
 
-    // 部屋一覧
+    // セクション一覧
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cmn|ProcGen")
-    TArray<FCmnGridRoom> rooms;
+    TArray<FCmnGridSection> sections;
 
     // プレイヤー開始座標
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cmn|ProcGen")
@@ -53,7 +53,7 @@ public:
         gridHeight = 0;
         floorCells.Reset();
         wallCells.Reset();
-        rooms.Reset();
+        sections.Reset();
         playerStartGridCoord = FIntPoint::ZeroValue;
         stairsGridCoord = FIntPoint::ZeroValue;
     }

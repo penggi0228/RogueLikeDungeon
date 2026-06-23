@@ -2,9 +2,12 @@
 
 #include "Game/Enemies/RldEnemyBase.h"
 
+#include "Engine/DataTable.h"
 #include "Kismet/GameplayStatics.h"
 
 #include "Common/Battle/CmnHealthComponent.h"
+#include "Common/Battle/CmnManaComponent.h"
+#include "Game/Battle/RldStatusEffectComponent.h"
 #include "Game/Characters/RldPlayerCharacter.h"
 #include "Game/Grid/RldGridManager.h"
 
@@ -15,14 +18,24 @@ ARldEnemyBase::ARldEnemyBase()
 {
     PrimaryActorTick.bCanEverTick = false;
 
-    // HP管理Component生成
+    // HP管理コンポーネント生成
     healthComponent = CreateDefaultSubobject<UCmnHealthComponent>(TEXT("HealthComponent"));
+
+    // MP管理コンポーネント生成
+    manaComponent = CreateDefaultSubobject<UCmnManaComponent>(TEXT("ManaComponent"));
+
+    // 状態異常管理コンポーネント生成
+    statusEffectComponent = CreateDefaultSubobject<URldStatusEffectComponent>(TEXT("StatusEffectComponent"));
 }
 
 /** 開始時処理 */
 void ARldEnemyBase::BeginPlay()
 {
     Super::BeginPlay();
+
+    // ステータス定義を読み込んでコンポーネントへ反映
+    LoadEnemyStatusDefinition();
+    ApplyBattleStatusToComponents();
 
     // 各管理Actorを取得
     ResolveGridManager();
@@ -43,8 +56,9 @@ void ARldEnemyBase::BeginPlay()
 
         UE_LOG(
             LogRldEnemyBase,
-            Log,
-            TEXT("BeginPlay: 初期ワールド座標=(%f,%f,%f) 初期グリッド座標=(%d,%d) 補正後ワールド座標=(%f,%f,%f)"),
+            Verbose,
+            TEXT("BeginPlay: Actor=%s 初期位置をグリッドへ補正しました 初期ワールド座標=(%f,%f,%f) 初期グリッド座標=(%d,%d) 補正後ワールド座標=(%f,%f,%f)"),
+            *GetNameSafe(this),
             currentWorldLocation.X,
             currentWorldLocation.Y,
             currentWorldLocation.Z,
@@ -61,7 +75,8 @@ void ARldEnemyBase::BeginPlay()
             UE_LOG(
                 LogRldEnemyBase,
                 Warning,
-                TEXT("BeginPlay: 初期位置の占有登録に失敗しました グリッド座標=(%d,%d)"),
+                TEXT("BeginPlay: Actor=%s 初期位置の占有登録に失敗しました グリッド座標=(%d,%d)"),
+                *GetNameSafe(this),
                 initialSpawnGridCoord.X,
                 initialSpawnGridCoord.Y
             );
@@ -77,11 +92,13 @@ void ARldEnemyBase::ExecuteTurn_Implementation()
     {
         UE_LOG(
             LogRldEnemyBase,
-            Log,
-            TEXT("ExecuteTurn: 戦闘不能のため行動しません 現在座標=(%d,%d)"),
+            Verbose,
+            TEXT("ExecuteTurn: Actor=%s 戦闘不能のため行動しません 現在の座標=(%d,%d)"),
+            *GetNameSafe(this),
             GetCurrentGridCoord().X,
             GetCurrentGridCoord().Y
         );
+
         return;
     }
 
@@ -91,8 +108,10 @@ void ARldEnemyBase::ExecuteTurn_Implementation()
         UE_LOG(
             LogRldEnemyBase,
             Warning,
-            TEXT("ExecuteTurn: GridManager未取得のため行動しません")
+            TEXT("ExecuteTurn: Actor=%s GridManager未取得のため行動しません"),
+            *GetNameSafe(this)
         );
+
         return;
     }
 
@@ -101,8 +120,10 @@ void ARldEnemyBase::ExecuteTurn_Implementation()
         UE_LOG(
             LogRldEnemyBase,
             Warning,
-            TEXT("ExecuteTurn: PlayerCharacter未取得のため行動しません")
+            TEXT("ExecuteTurn: Actor=%s PlayerCharacter未取得のため行動しません"),
+            *GetNameSafe(this)
         );
+
         return;
     }
 
@@ -118,12 +139,14 @@ void ARldEnemyBase::ExecuteTurn_Implementation()
         UE_LOG(
             LogRldEnemyBase,
             Log,
-            TEXT("ExecuteTurn: プレイヤーに隣接しているため攻撃予定です エネミー座標=(%d,%d) プレイヤー座標=(%d,%d)"),
+            TEXT("ExecuteTurn: Actor=%s プレイヤーに隣接しているため攻撃予定です エネミー座標=(%d,%d) プレイヤー座標=(%d,%d)"),
+            *GetNameSafe(this),
             currentEnemyGridCoord.X,
             currentEnemyGridCoord.Y,
             playerGridCoord.X,
             playerGridCoord.Y
         );
+
         return;
     }
 
@@ -135,10 +158,12 @@ void ARldEnemyBase::ExecuteTurn_Implementation()
         UE_LOG(
             LogRldEnemyBase,
             Log,
-            TEXT("ExecuteTurn: 移動先を決定できないため待機します 現在座標=(%d,%d)"),
+            TEXT("ExecuteTurn: Actor=%s 移動先を決定できないため待機します 現在の座標=(%d,%d)"),
+            *GetNameSafe(this),
             currentEnemyGridCoord.X,
             currentEnemyGridCoord.Y
         );
+
         return;
     }
 
@@ -148,10 +173,12 @@ void ARldEnemyBase::ExecuteTurn_Implementation()
         UE_LOG(
             LogRldEnemyBase,
             Log,
-            TEXT("ExecuteTurn: 次座標がプレイヤー位置のため移動せず待機します 次座標=(%d,%d)"),
+            TEXT("ExecuteTurn: Actor=%s 次の座標にプレイヤーがいるため移動せず待機します 次の座標=(%d,%d)"),
+            *GetNameSafe(this),
             nextGridCoord.X,
             nextGridCoord.Y
         );
+
         return;
     }
 
@@ -161,10 +188,12 @@ void ARldEnemyBase::ExecuteTurn_Implementation()
         UE_LOG(
             LogRldEnemyBase,
             Log,
-            TEXT("ExecuteTurn: 通行不可のため待機します 次座標=(%d,%d)"),
+            TEXT("ExecuteTurn: Actor=%s 通行不可のため待機します 次の座標=(%d,%d)"),
+            *GetNameSafe(this),
             nextGridCoord.X,
             nextGridCoord.Y
         );
+
         return;
     }
 
@@ -174,12 +203,14 @@ void ARldEnemyBase::ExecuteTurn_Implementation()
         UE_LOG(
             LogRldEnemyBase,
             Warning,
-            TEXT("ExecuteTurn: 占有情報の移動に失敗したため移動を中止します 現在座標=(%d,%d) 次座標=(%d,%d)"),
+            TEXT("ExecuteTurn: Actor=%s 占有情報の移動に失敗したため移動を中止します 現在の座標=(%d,%d) 次の座標=(%d,%d)"),
+            *GetNameSafe(this),
             currentEnemyGridCoord.X,
             currentEnemyGridCoord.Y,
             nextGridCoord.X,
             nextGridCoord.Y
         );
+
         return;
     }
 
@@ -189,7 +220,8 @@ void ARldEnemyBase::ExecuteTurn_Implementation()
     UE_LOG(
         LogRldEnemyBase,
         Log,
-        TEXT("ExecuteTurn: エネミーが移動しました 次座標=(%d,%d)"),
+        TEXT("ExecuteTurn: Actor=%s 移動完了 グリッド座標=(%d,%d)"),
+        *GetNameSafe(this),
         nextGridCoord.X,
         nextGridCoord.Y
     );
@@ -202,8 +234,9 @@ void ARldEnemyBase::SetInitialGridCoord(const FIntPoint& newInitialGridCoord)
 
     UE_LOG(
         LogRldEnemyBase,
-        Log,
-        TEXT("SetInitialGridCoord: 初期座標=(%d,%d)"),
+        Verbose,
+        TEXT("SetInitialGridCoord: Actor=%s 初期座標設定完了 初期座標=(%d,%d)"),
+        *GetNameSafe(this),
         initialGridCoord.X,
         initialGridCoord.Y
     );
@@ -218,8 +251,10 @@ void ARldEnemyBase::ResetToInitialState()
         UE_LOG(
             LogRldEnemyBase,
             Warning,
-            TEXT("ResetToInitialState: GridManager未取得のため初期状態へ戻せません")
+            TEXT("ResetToInitialState: Actor=%s GridManager未取得のため初期状態へ戻せません"),
+            *GetNameSafe(this)
         );
+
         return;
     }
 
@@ -239,7 +274,8 @@ void ARldEnemyBase::ResetToInitialState()
         UE_LOG(
             LogRldEnemyBase,
             Warning,
-            TEXT("ResetToInitialState: 初期位置の占有登録に失敗しました 初期座標=(%d,%d)"),
+            TEXT("ResetToInitialState: Actor=%s 初期位置の占有登録に失敗しました 初期座標=(%d,%d)"),
+            *GetNameSafe(this),
             initialGridCoord.X,
             initialGridCoord.Y
         );
@@ -248,9 +284,126 @@ void ARldEnemyBase::ResetToInitialState()
     UE_LOG(
         LogRldEnemyBase,
         Log,
-        TEXT("ResetToInitialState: 初期状態へ戻しました 初期座標=(%d,%d)"),
+        TEXT("ResetToInitialState: Actor=%s 初期状態へ戻しました 初期座標=(%d,%d)"),
+        *GetNameSafe(this),
         initialGridCoord.X,
         initialGridCoord.Y
+    );
+}
+
+/** エネミーステータス定義を読み込む */
+void ARldEnemyBase::LoadEnemyStatusDefinition()
+{
+    // DataTable未設定時はデフォルトステータスを使用
+    if (!enemyStatusDataTable)
+    {
+        UE_LOG(
+            LogRldEnemyBase,
+            Warning,
+            TEXT("LoadEnemyStatusDefinition: Actor=%s enemyStatusDataTableがnullのためデフォルトステータスを使用します"),
+            *GetNameSafe(this)
+        );
+
+        return;
+    }
+
+    // RowName未設定時はデフォルトステータスを使用
+    if (enemyStatusRowName.IsNone())
+    {
+        UE_LOG(
+            LogRldEnemyBase,
+            Warning,
+            TEXT("LoadEnemyStatusDefinition: Actor=%s enemyStatusRowNameがNoneのためデフォルトステータスを使用します"),
+            *GetNameSafe(this)
+        );
+
+        return;
+    }
+
+    static const FString contextString = TEXT("RldEnemyStatusDefinitionLookup");
+
+    const FRldEnemyStatusDefinition* foundDefinition =
+        enemyStatusDataTable->FindRow<FRldEnemyStatusDefinition>(
+            enemyStatusRowName,
+            contextString,
+            true
+        );
+
+    // 対応行未取得時はデフォルトステータスを使用
+    if (!foundDefinition)
+    {
+        UE_LOG(
+            LogRldEnemyBase,
+            Warning,
+            TEXT("LoadEnemyStatusDefinition: Actor=%s 対応行が存在しないためデフォルトステータスを使用します RowName=%s"),
+            *GetNameSafe(this),
+            *enemyStatusRowName.ToString()
+        );
+
+        return;
+    }
+
+    currentBattleStatus = foundDefinition->battleStatus;
+
+    UE_LOG(
+        LogRldEnemyBase,
+        Log,
+        TEXT("LoadEnemyStatusDefinition: データロード完了 Actor=%s RowName=%s エネミーID=%s 表示名=%s 最大HP=%d 最大MP=%d 攻撃力=%d 防御力=%d"),
+        *GetNameSafe(this),
+        *enemyStatusRowName.ToString(),
+        *foundDefinition->enemyId.ToString(),
+        *foundDefinition->displayName.ToString(),
+        currentBattleStatus.maxHP,
+        currentBattleStatus.maxMP,
+        currentBattleStatus.attackPower,
+        currentBattleStatus.defensePower
+    );
+}
+
+/** 戦闘ステータスをコンポーネントへ反映する */
+void ARldEnemyBase::ApplyBattleStatusToComponents()
+{
+    // HP管理コンポーネント取得時は最大HPの値を更新して、現在のHPに反映する
+    if (healthComponent)
+    {
+        healthComponent->SetMaxHP(currentBattleStatus.maxHP);
+        healthComponent->ResetHP();
+    }
+    else
+    {
+        UE_LOG(
+            LogRldEnemyBase,
+            Warning,
+            TEXT("ApplyBattleStatusToComponents: Actor=%s HealthComponentがnullのため最大HPを反映できません"),
+            *GetNameSafe(this)
+        );
+    }
+
+    // MP管理コンポーネント取得時は最大MPの値を更新して、現在のMPに反映する
+    if (manaComponent)
+    {
+        manaComponent->SetMaxMP(currentBattleStatus.maxMP);
+        manaComponent->ResetMP();
+    }
+    else
+    {
+        UE_LOG(
+            LogRldEnemyBase,
+            Warning,
+            TEXT("ApplyBattleStatusToComponents: Actor=%s ManaComponentがnullのため最大MPを反映できません"),
+            *GetNameSafe(this)
+        );
+    }
+
+    UE_LOG(
+        LogRldEnemyBase,
+        Log,
+        TEXT("ApplyBattleStatusToComponents: Actor=%s 戦闘ステータス反映完了 最大HP=%d 最大MP=%d 攻撃力=%d 防御力=%d"),
+        *GetNameSafe(this),
+        currentBattleStatus.maxHP,
+        currentBattleStatus.maxMP,
+        currentBattleStatus.attackPower,
+        currentBattleStatus.defensePower
     );
 }
 
@@ -265,17 +418,20 @@ void ARldEnemyBase::ResolveGridManager()
         UE_LOG(
             LogRldEnemyBase,
             Warning,
-            TEXT("ResolveGridManager: ARldGridManagerがレベル上に見つからない")
+            TEXT("ResolveGridManager: Actor=%s ARldGridManagerがレベル上に見つからないためグリッド移動処理が制限されます"),
+            *GetNameSafe(this)
         );
+
         return;
     }
 
     UE_LOG(
         LogRldEnemyBase,
-        Log,
-        TEXT("ResolveGridManager: 名前=%s クラス=%s"),
-        *gridManager->GetName(),
-        *gridManager->GetClass()->GetName()
+        Verbose,
+        TEXT("ResolveGridManager: Actor=%s GridManager=%s クラス=%s"),
+        *GetNameSafe(this),
+        *GetNameSafe(gridManager),
+        *GetNameSafe(gridManager->GetClass())
     );
 }
 
@@ -290,17 +446,20 @@ void ARldEnemyBase::ResolvePlayerCharacter()
         UE_LOG(
             LogRldEnemyBase,
             Warning,
-            TEXT("ResolvePlayerCharacter: ARldPlayerCharacterがレベル上に見つからない")
+            TEXT("ResolvePlayerCharacter: Actor=%s ARldPlayerCharacterがレベル上に見つからないためプレイヤー追跡処理が制限されます"),
+            *GetNameSafe(this)
         );
+
         return;
     }
 
     UE_LOG(
         LogRldEnemyBase,
-        Log,
-        TEXT("ResolvePlayerCharacter: 名前=%s クラス=%s"),
-        *playerCharacter->GetName(),
-        *playerCharacter->GetClass()->GetName()
+        Verbose,
+        TEXT("ResolvePlayerCharacter: Actor=%s PlayerCharacter=%s クラス=%s"),
+        *GetNameSafe(this),
+        *GetNameSafe(playerCharacter),
+        *GetNameSafe(playerCharacter->GetClass())
     );
 }
 

@@ -25,6 +25,16 @@ void UCmnSettingsSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
     // 差分状態の更新
     UpdateDirtyFlag();
+
+    UE_LOG(
+        LogCmnSettings,
+        Log,
+        TEXT("Initialize: Subsystem=%s 設定管理サブシステム初期化完了 左右反転=%s 上下反転=%s 未保存変更あり=%s"),
+        *GetNameSafe(this),
+        RuntimeSettings.bInvertCameraX ? TEXT("有効") : TEXT("無効"),
+        RuntimeSettings.bInvertCameraY ? TEXT("有効") : TEXT("無効"),
+        bHasUnsavedChanges ? TEXT("true") : TEXT("false")
+    );
 }
 
 /** 設定管理サブシステムを終了する */
@@ -60,6 +70,15 @@ void UCmnSettingsSubsystem::SetInvertCameraX(bool bValue)
 
     // 変更通知
     OnInputSettingsChanged.Broadcast(RuntimeSettings);
+
+    UE_LOG(
+        LogCmnSettings,
+        Log,
+        TEXT("SetInvertCameraX: Subsystem=%s カメラ左右反転設定を更新しました 左右反転=%s 未保存変更あり=%s"),
+        *GetNameSafe(this),
+        bValue ? TEXT("有効") : TEXT("無効"),
+        bHasUnsavedChanges ? TEXT("true") : TEXT("false")
+    );
 }
 
 /** カメラ上下反転設定を更新する */
@@ -79,6 +98,15 @@ void UCmnSettingsSubsystem::SetInvertCameraY(bool bValue)
 
     // 変更通知
     OnInputSettingsChanged.Broadcast(RuntimeSettings);
+
+    UE_LOG(
+        LogCmnSettings,
+        Log,
+        TEXT("SetInvertCameraY: Subsystem=%s カメラ上下反転設定を更新しました 上下反転=%s 未保存変更あり=%s"),
+        *GetNameSafe(this),
+        bValue ? TEXT("有効") : TEXT("無効"),
+        bHasUnsavedChanges ? TEXT("true") : TEXT("false")
+    );
 }
 
 // ----- 保存操作 -----
@@ -107,6 +135,16 @@ bool UCmnSettingsSubsystem::ApplyAndSaveInputOptions()
     // 変更通知
     OnInputSettingsChanged.Broadcast(RuntimeSettings);
 
+    UE_LOG(
+        LogCmnSettings,
+        Log,
+        TEXT("ApplyAndSaveInputOptions: Subsystem=%s 入力オプション保存完了 左右反転=%s 上下反転=%s 未保存変更あり=%s"),
+        *GetNameSafe(this),
+        RuntimeSettings.bInvertCameraX ? TEXT("有効") : TEXT("無効"),
+        RuntimeSettings.bInvertCameraY ? TEXT("有効") : TEXT("無効"),
+        bHasUnsavedChanges ? TEXT("true") : TEXT("false")
+    );
+
     return true;
 }
 
@@ -127,6 +165,16 @@ void UCmnSettingsSubsystem::ReloadInputOptions()
 
     // 変更通知
     OnInputSettingsChanged.Broadcast(RuntimeSettings);
+
+    UE_LOG(
+        LogCmnSettings,
+        Log,
+        TEXT("ReloadInputOptions: Subsystem=%s 入力オプション再読み込み完了 左右反転=%s 上下反転=%s 未保存変更あり=%s"),
+        *GetNameSafe(this),
+        RuntimeSettings.bInvertCameraX ? TEXT("有効") : TEXT("無効"),
+        RuntimeSettings.bInvertCameraY ? TEXT("有効") : TEXT("無効"),
+        bHasUnsavedChanges ? TEXT("true") : TEXT("false")
+    );
 }
 
 // ----- Save & Load: 入力オプション -----
@@ -145,9 +193,27 @@ void UCmnSettingsSubsystem::LoadInputOptionsInternal()
     // SaveGame取得に失敗した場合は警告ログ出力
     if (!CachedInputOptions)
     {
-        UE_LOG(LogCmnSettings, Warning,
-            TEXT("LoadInputOptionsInternal: 入力設定SaveGameの取得に失敗"));
+        UE_LOG(
+            LogCmnSettings,
+            Warning,
+            TEXT("LoadInputOptionsInternal: Subsystem=%s 入力設定SaveGameの取得に失敗しました SlotName=%s UserIndex=%d"),
+            *GetNameSafe(this),
+            *InputOptionsSlotName,
+            InputOptionsUserIndex
+        );
+
+        return;
     }
+
+    UE_LOG(
+        LogCmnSettings,
+        Verbose,
+        TEXT("LoadInputOptionsInternal: Subsystem=%s 入力設定SaveGameを取得しました SlotName=%s UserIndex=%d SaveGame=%s"),
+        *GetNameSafe(this),
+        *InputOptionsSlotName,
+        InputOptionsUserIndex,
+        *GetNameSafe(CachedInputOptions)
+    );
 }
 
 /** SaveGameキャッシュ値をRuntimeへ反映する */
@@ -156,6 +222,13 @@ void UCmnSettingsSubsystem::ReadCacheToRuntime()
     // キャッシュ未取得の場合は処理しない
     if (!CachedInputOptions)
     {
+        UE_LOG(
+            LogCmnSettings,
+            Warning,
+            TEXT("ReadCacheToRuntime: Subsystem=%s CachedInputOptionsがnullのためRuntimeへ反映しません"),
+            *GetNameSafe(this)
+        );
+
         return;
     }
 
@@ -169,6 +242,13 @@ void UCmnSettingsSubsystem::WriteRuntimeToCache()
     // キャッシュ未取得の場合は処理しない
     if (!CachedInputOptions)
     {
+        UE_LOG(
+            LogCmnSettings,
+            Warning,
+            TEXT("WriteRuntimeToCache: Subsystem=%s CachedInputOptionsがnullのためSaveGameキャッシュへ書き戻しません"),
+            *GetNameSafe(this)
+        );
+
         return;
     }
 
@@ -182,8 +262,13 @@ bool UCmnSettingsSubsystem::SaveInputOptions()
     // キャッシュ未取得の場合は保存失敗
     if (!CachedInputOptions)
     {
-        UE_LOG(LogCmnSettings, Warning,
-            TEXT("SaveInputOptions: CachedInputOptionsがnull"));
+        UE_LOG(
+            LogCmnSettings,
+            Warning,
+            TEXT("SaveInputOptions: Subsystem=%s CachedInputOptionsがnullのため保存できません"),
+            *GetNameSafe(this)
+        );
+
         return false;
     }
 
@@ -196,8 +281,14 @@ bool UCmnSettingsSubsystem::SaveInputOptions()
     // 保存失敗時はエラーログ出力
     if (!bResult)
     {
-        UE_LOG(LogCmnSettings, Error,
-            TEXT("SaveInputOptions: 入力設定の保存に失敗"));
+        UE_LOG(
+            LogCmnSettings,
+            Error,
+            TEXT("SaveInputOptions: Subsystem=%s 入力設定の保存に失敗しました SlotName=%s UserIndex=%d"),
+            *GetNameSafe(this),
+            *InputOptionsSlotName,
+            InputOptionsUserIndex
+        );
     }
 
     return bResult;

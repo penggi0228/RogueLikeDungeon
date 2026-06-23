@@ -10,8 +10,8 @@ class UInputMappingContext;
 class UInputAction;
 
 /**
- * 共通入力設定用DataAsset
- * 入力アセット参照と入力設定値を保持する
+ * 共通入力設定DataAsset
+ * ゲーム操作・UI操作・デバッグ操作で使用するInputActionとIMCを保持する
  */
 UCLASS(BlueprintType)
 class ROGUELIKEDUNGEON_API UCmnInputConfig : public UDataAsset
@@ -20,47 +20,46 @@ class ROGUELIKEDUNGEON_API UCmnInputConfig : public UDataAsset
 
 public:
 
-    // ----- InputMappingContext -----
+    // ----- Input Mapping Context -----
 
-    // ゲーム用IMC
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Common|Input|IMC")
+    // ゲーム操作用IMC
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Cmn|Input|IMC")
     TObjectPtr<UInputMappingContext> IMC_Game = nullptr;
 
-    // UI用IMC
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Common|Input|IMC")
+    // UI操作用IMC
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Cmn|Input|IMC")
     TObjectPtr<UInputMappingContext> IMC_UI = nullptr;
 
 public:
 
     // ----- Game InputAction -----
 
-    // ゲーム移動用InputAction
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Common|Input|IA|Game")
+    // ダンジョン移動用InputAction
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Cmn|Input|Game")
     TObjectPtr<UInputAction> IA_Move = nullptr;
 
-    // 待機用InputAction
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Common|Input|IA|Game")
-    TObjectPtr<UInputAction> IA_Wait = nullptr;
+    // 足踏み用InputAction
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Cmn|Input|Game")
+    TObjectPtr<UInputAction> IA_StepInPlaceModifier = nullptr;
 
     // 通常攻撃用InputAction
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Common|Input|IA|Game")
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Cmn|Input|Game")
     TObjectPtr<UInputAction> IA_Attack = nullptr;
 
     // インタラクト用InputAction
-    // 目の前のマスを調べる、宝箱を開けるなどの操作に使用
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Common|Input|IA|Game")
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Cmn|Input|Game")
     TObjectPtr<UInputAction> IA_Interact = nullptr;
 
     // メニュー表示用InputAction
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Common|Input|IA|Game")
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Cmn|Input|Game")
     TObjectPtr<UInputAction> IA_Menu = nullptr;
 
-    // カメラ視点操作用InputAction
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Common|Input|IA|Game")
+    // カメラ視点用InputAction
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Cmn|Input|Game")
     TObjectPtr<UInputAction> IA_CameraLook = nullptr;
 
-    // カメラズーム操作用InputAction
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Common|Input|IA|Game")
+    // カメラズーム用InputAction
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Cmn|Input|Game")
     TObjectPtr<UInputAction> IA_CameraZoom = nullptr;
 
 public:
@@ -68,71 +67,70 @@ public:
     // ----- UI InputAction -----
 
     // UI方向入力用InputAction
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Common|Input|IA|UI")
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Cmn|Input|UI")
     TObjectPtr<UInputAction> IA_UI_Direction = nullptr;
 
     // UI決定用InputAction
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Common|Input|IA|UI")
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Cmn|Input|UI")
     TObjectPtr<UInputAction> IA_UI_Confirm = nullptr;
 
-    // UIクローズ用InputAction
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Common|Input|IA|UI")
+    // UI閉じる用InputAction
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Cmn|Input|UI")
     TObjectPtr<UInputAction> IA_UI_Close = nullptr;
 
     // UIスクロール用InputAction
-    // マウスホイールや右スティックY軸入力を受け取る
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Common|Input|IA|UI")
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Cmn|Input|UI")
     TObjectPtr<UInputAction> IA_UI_Scroll = nullptr;
 
 public:
 
-    // ----- Debug Command InputAction -----
+    // ----- Debug InputAction -----
 
     // デバッグコマンド開始用InputAction
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Common|Input|IA|Debug")
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Cmn|Input|Debug")
     TObjectPtr<UInputAction> IA_DebugCommandPrefix = nullptr;
 
-    // キーボード用デバッグコマンド1InputAction
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Common|Input|IA|Debug|Keyboard")
+    // キーボード用デバッグコマンド第1InputAction
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Cmn|Input|Debug")
     TObjectPtr<UInputAction> IA_DebugCommandKeyboard1 = nullptr;
 
-    // キーボード用デバッグコマンド2InputAction
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Common|Input|IA|Debug|Keyboard")
+    // キーボード用デバッグコマンド第2InputAction
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Cmn|Input|Debug")
     TObjectPtr<UInputAction> IA_DebugCommandKeyboard2 = nullptr;
 
-    // キーボード用デバッグコマンド3InputAction
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Common|Input|IA|Debug|Keyboard")
+    // キーボード用デバッグコマンド第3InputAction
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Cmn|Input|Debug")
     TObjectPtr<UInputAction> IA_DebugCommandKeyboard3 = nullptr;
 
-    // キーボード用デバッグコマンド4InputAction
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Common|Input|IA|Debug|Keyboard")
+    // キーボード用デバッグコマンド第4InputAction
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Cmn|Input|Debug")
     TObjectPtr<UInputAction> IA_DebugCommandKeyboard4 = nullptr;
 
-    // キーボード用デバッグコマンド5InputAction
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Common|Input|IA|Debug|Keyboard")
+    // キーボード用デバッグコマンド第5InputAction
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Cmn|Input|Debug")
     TObjectPtr<UInputAction> IA_DebugCommandKeyboard5 = nullptr;
 
-    // ゲームパッド用デバッグコマンド1InputAction
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Common|Input|IA|Debug|Gamepad")
+    // ゲームパッド用デバッグコマンド第1InputAction
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Cmn|Input|Debug")
     TObjectPtr<UInputAction> IA_DebugCommandGamepad1 = nullptr;
 
-    // ゲームパッド用デバッグコマンド2InputAction
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Common|Input|IA|Debug|Gamepad")
+    // ゲームパッド用デバッグコマンド第2InputAction
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Cmn|Input|Debug")
     TObjectPtr<UInputAction> IA_DebugCommandGamepad2 = nullptr;
 
 public:
 
-    // ----- Parameters -----
+    // ----- Input Parameters -----
 
-    // UIリピートの初回遅延時間
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Common|Input|UI")
+    // UI入力リピート開始までの秒数
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Cmn|Input|Parameter", meta = (ClampMin = "0.0"))
     float UIRepeatDelay = 0.25f;
 
-    // UIリピートの間隔
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Common|Input|UI")
+    // UI入力リピート間隔
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Cmn|Input|Parameter", meta = (ClampMin = "0.01"))
     float UIRepeatInterval = 0.12f;
 
-    // スティック入力のデッドゾーン
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Common|Input|Axis")
+    // 入力デッドゾーン
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Cmn|Input|Parameter", meta = (ClampMin = "0.0", ClampMax = "1.0"))
     float DeadZone = 0.50f;
 };

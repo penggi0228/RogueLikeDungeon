@@ -15,7 +15,7 @@ void FCmnGridDungeonGeneratorBase::InitializeGeneration(int32 inGridWidth, int32
 
     UE_LOG(
         LogCmnGridDungeonGeneratorBase,
-        Log,
+        Verbose,
         TEXT("InitializeGeneration: グリッドサイズ=(%d,%d) Seed=%d"),
         gridWidth,
         gridHeight,

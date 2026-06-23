@@ -1,15 +1,15 @@
-// CmnGridRoom.h
+// CmnGridSection.h
 
 #pragma once
 
 #include "CoreMinimal.h"
-#include "CmnGridRoom.generated.h"
+#include "CmnGridSection.generated.h"
 
 /**
- * グリッド上の部屋矩形情報
+ * グリッド上のセクション矩形情報
  */
 USTRUCT(BlueprintType)
-struct FCmnGridRoom
+struct FCmnGridSection
 {
     GENERATED_BODY()
 
@@ -34,17 +34,17 @@ public:
 public:
 
     /** デフォルトコンストラクタ */
-    FCmnGridRoom() = default;
+    FCmnGridSection() = default;
 
     /**
-     * 部屋矩形を初期化する
+     * セクション矩形を初期化する
      *
      * @param inLeft 左上X座標
      * @param inTop 左上Y座標
      * @param inWidth 横幅
      * @param inHeight 縦幅
      */
-    FCmnGridRoom(int32 inLeft, int32 inTop, int32 inWidth, int32 inHeight)
+    FCmnGridSection(int32 inLeft, int32 inTop, int32 inWidth, int32 inHeight)
         : left(inLeft)
         , top(inTop)
         , width(inWidth)
@@ -72,20 +72,20 @@ public:
         return FIntPoint(left + (width / 2), top + (height / 2));
     }
 
-    /** 有効な部屋か判定する */
+    /** 有効なセクションか判定する */
     bool IsValid() const
     {
         return width > 0 && height > 0;
     }
 
     /**
-     * 指定余白込みで他部屋と重なっているか判定する
+     * 指定余白込みで他セクションと重なっているか判定する
      *
-     * @param other 比較対象の部屋
+     * @param other 比較対象のセクション
      * @param padding 判定時の余白
      * @return 重なっているならtrue
      */
-    bool IntersectsWithPadding(const FCmnGridRoom& other, int32 padding) const
+    bool IntersectsWithPadding(const FCmnGridSection& other, int32 padding) const
     {
         const int32 thisLeft = left - padding;
         const int32 thisTop = top - padding;

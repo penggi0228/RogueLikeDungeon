@@ -7,8 +7,8 @@
 #include "Engine/GameInstance.h"
 #include "InputCoreTypes.h"
 
-#include "Common/Input/CmnInputRouter.h"
 #include "Common/Input/CmnInputConfig.h"
+#include "Common/Input/CmnInputRouter.h"
 #include "Common/Settings/CmnSettingsSubsystem.h"
 #include "Game/Characters/RldPlayerCharacter.h"
 #include "Game/UI/RldDebugOptionsWidget.h"
@@ -69,19 +69,35 @@ void ARldPlayerController::BeginPlay()
         HandleInputSettingsChanged(SettingsSubsystem->GetCurrentSettings());
     }
 
-    ULocalPlayer* LocalPlayer = GetLocalPlayer();
-    UEnhancedInputLocalPlayerSubsystem* Subsystem =
-        LocalPlayer ? LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>() : nullptr;
+    ULocalPlayer* localPlayer = GetLocalPlayer();
+    UEnhancedInputLocalPlayerSubsystem* subsystem =
+        localPlayer ? localPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>() : nullptr;
 
     // 入力ルーターまたはEnhancedInputSubsystem未取得時は初期化しない
-    if (!ensure(InputRouter && Subsystem))
+    if (!ensure(InputRouter && subsystem))
     {
+        UE_LOG(
+            LogRldInput,
+            Error,
+            TEXT("BeginPlay: Actor=%s 入力初期化に失敗しました InputRouter=%s Subsystem=%s"),
+            *GetNameSafe(this),
+            InputRouter ? TEXT("有効") : TEXT("null"),
+            subsystem ? TEXT("有効") : TEXT("null")
+        );
+
         return;
     }
 
     // 入力ルーターを初期化してゲームモードを適用
-    InputRouter->Initialize(this, Subsystem);
+    InputRouter->Initialize(this, subsystem);
     InputRouter->SetInputMode(ECmnInputMode::Game);
+
+    UE_LOG(
+        LogRldInput,
+        Log,
+        TEXT("BeginPlay: Actor=%s 入力初期化完了 初期入力モード=Game"),
+        *GetNameSafe(this)
+    );
 }
 
 /** 終了時処理 */
@@ -107,96 +123,240 @@ void ARldPlayerController::SetupInputComponent()
 
     EnsureEnhancedInputComponent();
 
-    UEnhancedInputComponent* EIC = Cast<UEnhancedInputComponent>(InputComponent);
+    UEnhancedInputComponent* enhancedInputComponent = Cast<UEnhancedInputComponent>(InputComponent);
 
     // EnhancedInputComponentまたは入力ルーター未取得時はBindしない
-    if (!ensure(EIC && InputRouter))
+    if (!ensure(enhancedInputComponent && InputRouter))
     {
-        UE_LOG(LogRldInput, Error, TEXT("SetupInputComponent: EnhancedInputComponentまたはInputRouterがnull"));
+        UE_LOG(
+            LogRldInput,
+            Error,
+            TEXT("SetupInputComponent: Actor=%s 入力Bindに失敗しました EnhancedInputComponent=%s InputRouter=%s"),
+            *GetNameSafe(this),
+            enhancedInputComponent ? TEXT("有効") : TEXT("null"),
+            InputRouter ? TEXT("有効") : TEXT("null")
+        );
+
         return;
     }
 
-    UE_LOG(LogRldInput, Log, TEXT("SetupInputComponent: 入力Bind開始"));
+    UE_LOG(
+        LogRldInput,
+        Verbose,
+        TEXT("SetupInputComponent: Actor=%s 入力Bind開始"),
+        *GetNameSafe(this)
+    );
 
     // ----- ゲーム操作 -----
 
     // 移動InputAction取得時はBind
     if (InputRouter->IA_Move)
     {
-        UE_LOG(LogRldInput, Log, TEXT("SetupInputComponent: IA_MoveをBindします"));
+        UE_LOG(
+            LogRldInput,
+            Verbose,
+            TEXT("SetupInputComponent: Actor=%s IA_MoveをBindします"),
+            *GetNameSafe(this)
+        );
 
-        EIC->BindAction(InputRouter->IA_Move, ETriggerEvent::Started, this, &ARldPlayerController::OnMoveStarted);
-        EIC->BindAction(InputRouter->IA_Move, ETriggerEvent::Triggered, this, &ARldPlayerController::OnMoveTriggered);
+        enhancedInputComponent->BindAction(
+            InputRouter->IA_Move,
+            ETriggerEvent::Started,
+            this,
+            &ARldPlayerController::OnMoveStarted
+        );
+
+        enhancedInputComponent->BindAction(
+            InputRouter->IA_Move,
+            ETriggerEvent::Triggered,
+            this,
+            &ARldPlayerController::OnMoveTriggered
+        );
     }
     else
     {
-        UE_LOG(LogRldInput, Warning, TEXT("SetupInputComponent: IA_Moveがnull"));
+        UE_LOG(
+            LogRldInput,
+            Warning,
+            TEXT("SetupInputComponent: Actor=%s IA_MoveがnullのためBindしません"),
+            *GetNameSafe(this)
+        );
     }
 
-    // 待機InputAction取得時はBind
-    if (InputRouter->IA_Wait)
+    // 足踏み用InputAction取得時はBind
+    if (InputRouter->IA_StepInPlaceModifier)
     {
-        UE_LOG(LogRldInput, Log, TEXT("SetupInputComponent: IA_WaitをBindします"));
-        EIC->BindAction(InputRouter->IA_Wait, ETriggerEvent::Started, this, &ARldPlayerController::OnWaitStarted);
+        UE_LOG(
+            LogRldInput,
+            Verbose,
+            TEXT("SetupInputComponent: Actor=%s IA_StepInPlaceModifierをBindします"),
+            *GetNameSafe(this)
+        );
+
+        enhancedInputComponent->BindAction(
+            InputRouter->IA_StepInPlaceModifier,
+            ETriggerEvent::Started,
+            this,
+            &ARldPlayerController::OnStepInPlaceModifierStarted
+        );
+
+        enhancedInputComponent->BindAction(
+            InputRouter->IA_StepInPlaceModifier,
+            ETriggerEvent::Completed,
+            this,
+            &ARldPlayerController::OnStepInPlaceModifierCompleted
+        );
+
+        enhancedInputComponent->BindAction(
+            InputRouter->IA_StepInPlaceModifier,
+            ETriggerEvent::Canceled,
+            this,
+            &ARldPlayerController::OnStepInPlaceModifierCompleted
+        );
     }
     else
     {
-        UE_LOG(LogRldInput, Warning, TEXT("SetupInputComponent: IA_Waitがnull"));
+        UE_LOG(
+            LogRldInput,
+            Warning,
+            TEXT("SetupInputComponent: Actor=%s IA_StepInPlaceModifierがnullのためBindしません"),
+            *GetNameSafe(this)
+        );
     }
 
     // 通常攻撃InputAction取得時はBind
     if (InputRouter->IA_Attack)
     {
-        UE_LOG(LogRldInput, Log, TEXT("SetupInputComponent: IA_AttackをBindします"));
-        EIC->BindAction(InputRouter->IA_Attack, ETriggerEvent::Started, this, &ARldPlayerController::OnAttackStarted);
+        UE_LOG(
+            LogRldInput,
+            Verbose,
+            TEXT("SetupInputComponent: Actor=%s IA_AttackをBindします"),
+            *GetNameSafe(this)
+        );
+
+        enhancedInputComponent->BindAction(
+            InputRouter->IA_Attack,
+            ETriggerEvent::Started,
+            this,
+            &ARldPlayerController::OnAttackStarted
+        );
     }
     else
     {
-        UE_LOG(LogRldInput, Warning, TEXT("SetupInputComponent: IA_Attackがnull"));
+        UE_LOG(
+            LogRldInput,
+            Warning,
+            TEXT("SetupInputComponent: Actor=%s IA_AttackがnullのためBindしません"),
+            *GetNameSafe(this)
+        );
     }
 
     // インタラクトInputAction取得時はBind
     if (InputRouter->IA_Interact)
     {
-        UE_LOG(LogRldInput, Log, TEXT("SetupInputComponent: IA_InteractをBindします"));
-        EIC->BindAction(InputRouter->IA_Interact, ETriggerEvent::Started, this, &ARldPlayerController::OnInteractStarted);
+        UE_LOG(
+            LogRldInput,
+            Verbose,
+            TEXT("SetupInputComponent: Actor=%s IA_InteractをBindします"),
+            *GetNameSafe(this)
+        );
+
+        enhancedInputComponent->BindAction(
+            InputRouter->IA_Interact,
+            ETriggerEvent::Started,
+            this,
+            &ARldPlayerController::OnInteractStarted
+        );
     }
     else
     {
-        UE_LOG(LogRldInput, Warning, TEXT("SetupInputComponent: IA_Interactがnull"));
+        UE_LOG(
+            LogRldInput,
+            Warning,
+            TEXT("SetupInputComponent: Actor=%s IA_InteractがnullのためBindしません"),
+            *GetNameSafe(this)
+        );
     }
 
     // メニューInputAction取得時はBind
     if (InputRouter->IA_Menu)
     {
-        UE_LOG(LogRldInput, Log, TEXT("SetupInputComponent: IA_MenuをBindします"));
-        EIC->BindAction(InputRouter->IA_Menu, ETriggerEvent::Started, this, &ARldPlayerController::OnMenuStarted);
+        UE_LOG(
+            LogRldInput,
+            Verbose,
+            TEXT("SetupInputComponent: Actor=%s IA_MenuをBindします"),
+            *GetNameSafe(this)
+        );
+
+        enhancedInputComponent->BindAction(
+            InputRouter->IA_Menu,
+            ETriggerEvent::Started,
+            this,
+            &ARldPlayerController::OnMenuStarted
+        );
     }
     else
     {
-        UE_LOG(LogRldInput, Warning, TEXT("SetupInputComponent: IA_Menuがnull"));
+        UE_LOG(
+            LogRldInput,
+            Warning,
+            TEXT("SetupInputComponent: Actor=%s IA_MenuがnullのためBindしません"),
+            *GetNameSafe(this)
+        );
     }
 
     // カメラ視点InputAction取得時はBind
     if (InputRouter->IA_CameraLook)
     {
-        UE_LOG(LogRldInput, Log, TEXT("SetupInputComponent: IA_CameraLookをBindします"));
-        EIC->BindAction(InputRouter->IA_CameraLook, ETriggerEvent::Triggered, this, &ARldPlayerController::OnCameraLookTriggered);
+        UE_LOG(
+            LogRldInput,
+            Verbose,
+            TEXT("SetupInputComponent: Actor=%s IA_CameraLookをBindします"),
+            *GetNameSafe(this)
+        );
+
+        enhancedInputComponent->BindAction(
+            InputRouter->IA_CameraLook,
+            ETriggerEvent::Triggered,
+            this,
+            &ARldPlayerController::OnCameraLookTriggered
+        );
     }
     else
     {
-        UE_LOG(LogRldInput, Warning, TEXT("SetupInputComponent: IA_CameraLookがnull"));
+        UE_LOG(
+            LogRldInput,
+            Warning,
+            TEXT("SetupInputComponent: Actor=%s IA_CameraLookがnullのためBindしません"),
+            *GetNameSafe(this)
+        );
     }
 
     // カメラズームInputAction取得時はBind
     if (InputRouter->IA_CameraZoom)
     {
-        UE_LOG(LogRldInput, Log, TEXT("SetupInputComponent: IA_CameraZoomをBindします"));
-        EIC->BindAction(InputRouter->IA_CameraZoom, ETriggerEvent::Triggered, this, &ARldPlayerController::OnCameraZoomTriggered);
+        UE_LOG(
+            LogRldInput,
+            Verbose,
+            TEXT("SetupInputComponent: Actor=%s IA_CameraZoomをBindします"),
+            *GetNameSafe(this)
+        );
+
+        enhancedInputComponent->BindAction(
+            InputRouter->IA_CameraZoom,
+            ETriggerEvent::Triggered,
+            this,
+            &ARldPlayerController::OnCameraZoomTriggered
+        );
     }
     else
     {
-        UE_LOG(LogRldInput, Warning, TEXT("SetupInputComponent: IA_CameraZoomがnull"));
+        UE_LOG(
+            LogRldInput,
+            Warning,
+            TEXT("SetupInputComponent: Actor=%s IA_CameraZoomがnullのためBindしません"),
+            *GetNameSafe(this)
+        );
     }
 
     // ----- UI操作 -----
@@ -204,45 +364,109 @@ void ARldPlayerController::SetupInputComponent()
     // UI方向入力InputAction取得時はBind
     if (InputRouter->IA_UI_Direction)
     {
-        UE_LOG(LogRldInput, Log, TEXT("SetupInputComponent: IA_UI_DirectionをBindします"));
-        EIC->BindAction(InputRouter->IA_UI_Direction, ETriggerEvent::Triggered, this, &ARldPlayerController::OnUIDirectionTriggered);
+        UE_LOG(
+            LogRldInput,
+            Verbose,
+            TEXT("SetupInputComponent: Actor=%s IA_UI_DirectionをBindします"),
+            *GetNameSafe(this)
+        );
+
+        enhancedInputComponent->BindAction(
+            InputRouter->IA_UI_Direction,
+            ETriggerEvent::Triggered,
+            this,
+            &ARldPlayerController::OnUIDirectionTriggered
+        );
     }
     else
     {
-        UE_LOG(LogRldInput, Warning, TEXT("SetupInputComponent: IA_UI_Directionがnull"));
+        UE_LOG(
+            LogRldInput,
+            Warning,
+            TEXT("SetupInputComponent: Actor=%s IA_UI_DirectionがnullのためBindしません"),
+            *GetNameSafe(this)
+        );
     }
 
     // UI決定InputAction取得時はBind
     if (InputRouter->IA_UI_Confirm)
     {
-        UE_LOG(LogRldInput, Log, TEXT("SetupInputComponent: IA_UI_ConfirmをBindします"));
-        EIC->BindAction(InputRouter->IA_UI_Confirm, ETriggerEvent::Started, this, &ARldPlayerController::OnUIConfirmStarted);
+        UE_LOG(
+            LogRldInput,
+            Verbose,
+            TEXT("SetupInputComponent: Actor=%s IA_UI_ConfirmをBindします"),
+            *GetNameSafe(this)
+        );
+
+        enhancedInputComponent->BindAction(
+            InputRouter->IA_UI_Confirm,
+            ETriggerEvent::Started,
+            this,
+            &ARldPlayerController::OnUIConfirmStarted
+        );
     }
     else
     {
-        UE_LOG(LogRldInput, Warning, TEXT("SetupInputComponent: IA_UI_Confirmがnull"));
+        UE_LOG(
+            LogRldInput,
+            Warning,
+            TEXT("SetupInputComponent: Actor=%s IA_UI_ConfirmがnullのためBindしません"),
+            *GetNameSafe(this)
+        );
     }
 
     // UI閉じるInputAction取得時はBind
     if (InputRouter->IA_UI_Close)
     {
-        UE_LOG(LogRldInput, Log, TEXT("SetupInputComponent: IA_UI_CloseをBindします"));
-        EIC->BindAction(InputRouter->IA_UI_Close, ETriggerEvent::Started, this, &ARldPlayerController::OnUICloseStarted);
+        UE_LOG(
+            LogRldInput,
+            Verbose,
+            TEXT("SetupInputComponent: Actor=%s IA_UI_CloseをBindします"),
+            *GetNameSafe(this)
+        );
+
+        enhancedInputComponent->BindAction(
+            InputRouter->IA_UI_Close,
+            ETriggerEvent::Started,
+            this,
+            &ARldPlayerController::OnUICloseStarted
+        );
     }
     else
     {
-        UE_LOG(LogRldInput, Warning, TEXT("SetupInputComponent: IA_UI_Closeがnull"));
+        UE_LOG(
+            LogRldInput,
+            Warning,
+            TEXT("SetupInputComponent: Actor=%s IA_UI_CloseがnullのためBindしません"),
+            *GetNameSafe(this)
+        );
     }
 
     // UIスクロールInputAction取得時はBind
     if (InputRouter->IA_UI_Scroll)
     {
-        UE_LOG(LogRldInput, Log, TEXT("SetupInputComponent: IA_UI_ScrollをBindします"));
-        EIC->BindAction(InputRouter->IA_UI_Scroll, ETriggerEvent::Triggered, this, &ARldPlayerController::OnUIScrollTriggered);
+        UE_LOG(
+            LogRldInput,
+            Verbose,
+            TEXT("SetupInputComponent: Actor=%s IA_UI_ScrollをBindします"),
+            *GetNameSafe(this)
+        );
+
+        enhancedInputComponent->BindAction(
+            InputRouter->IA_UI_Scroll,
+            ETriggerEvent::Triggered,
+            this,
+            &ARldPlayerController::OnUIScrollTriggered
+        );
     }
     else
     {
-        UE_LOG(LogRldInput, Warning, TEXT("SetupInputComponent: IA_UI_Scrollがnull"));
+        UE_LOG(
+            LogRldInput,
+            Warning,
+            TEXT("SetupInputComponent: Actor=%s IA_UI_ScrollがnullのためBindしません"),
+            *GetNameSafe(this)
+        );
     }
 
     // ----- デバッグコマンド -----
@@ -250,90 +474,225 @@ void ARldPlayerController::SetupInputComponent()
     // デバッグコマンド開始InputAction取得時はBind
     if (InputRouter->IA_DebugCommandPrefix)
     {
-        UE_LOG(LogRldInput, Log, TEXT("SetupInputComponent: IA_DebugCommandPrefixをBindします"));
-        EIC->BindAction(InputRouter->IA_DebugCommandPrefix, ETriggerEvent::Started, this, &ARldPlayerController::OnDebugCommandPrefixStarted);
+        UE_LOG(
+            LogRldInput,
+            Verbose,
+            TEXT("SetupInputComponent: Actor=%s IA_DebugCommandPrefixをBindします"),
+            *GetNameSafe(this)
+        );
+
+        enhancedInputComponent->BindAction(
+            InputRouter->IA_DebugCommandPrefix,
+            ETriggerEvent::Started,
+            this,
+            &ARldPlayerController::OnDebugCommandPrefixStarted
+        );
     }
     else
     {
-        UE_LOG(LogRldInput, Warning, TEXT("SetupInputComponent: IA_DebugCommandPrefixがnull"));
+        UE_LOG(
+            LogRldInput,
+            Warning,
+            TEXT("SetupInputComponent: Actor=%s IA_DebugCommandPrefixがnullのためBindしません"),
+            *GetNameSafe(this)
+        );
     }
 
     // キーボード用デバッグコマンド1InputAction取得時はBind
     if (InputRouter->IA_DebugCommandKeyboard1)
     {
-        UE_LOG(LogRldInput, Log, TEXT("SetupInputComponent: IA_DebugCommandKeyboard1をBindします"));
-        EIC->BindAction(InputRouter->IA_DebugCommandKeyboard1, ETriggerEvent::Started, this, &ARldPlayerController::OnDebugCommandKeyboard1Started);
+        UE_LOG(
+            LogRldInput,
+            Verbose,
+            TEXT("SetupInputComponent: Actor=%s IA_DebugCommandKeyboard1をBindします"),
+            *GetNameSafe(this)
+        );
+
+        enhancedInputComponent->BindAction(
+            InputRouter->IA_DebugCommandKeyboard1,
+            ETriggerEvent::Started,
+            this,
+            &ARldPlayerController::OnDebugCommandKeyboard1Started
+        );
     }
     else
     {
-        UE_LOG(LogRldInput, Warning, TEXT("SetupInputComponent: IA_DebugCommandKeyboard1がnull"));
+        UE_LOG(
+            LogRldInput,
+            Warning,
+            TEXT("SetupInputComponent: Actor=%s IA_DebugCommandKeyboard1がnullのためBindしません"),
+            *GetNameSafe(this)
+        );
     }
 
     // キーボード用デバッグコマンド2InputAction取得時はBind
     if (InputRouter->IA_DebugCommandKeyboard2)
     {
-        UE_LOG(LogRldInput, Log, TEXT("SetupInputComponent: IA_DebugCommandKeyboard2をBindします"));
-        EIC->BindAction(InputRouter->IA_DebugCommandKeyboard2, ETriggerEvent::Started, this, &ARldPlayerController::OnDebugCommandKeyboard2Started);
+        UE_LOG(
+            LogRldInput,
+            Verbose,
+            TEXT("SetupInputComponent: Actor=%s IA_DebugCommandKeyboard2をBindします"),
+            *GetNameSafe(this)
+        );
+
+        enhancedInputComponent->BindAction(
+            InputRouter->IA_DebugCommandKeyboard2,
+            ETriggerEvent::Started,
+            this,
+            &ARldPlayerController::OnDebugCommandKeyboard2Started
+        );
     }
     else
     {
-        UE_LOG(LogRldInput, Warning, TEXT("SetupInputComponent: IA_DebugCommandKeyboard2がnull"));
+        UE_LOG(
+            LogRldInput,
+            Warning,
+            TEXT("SetupInputComponent: Actor=%s IA_DebugCommandKeyboard2がnullのためBindしません"),
+            *GetNameSafe(this)
+        );
     }
 
     // キーボード用デバッグコマンド3InputAction取得時はBind
     if (InputRouter->IA_DebugCommandKeyboard3)
     {
-        UE_LOG(LogRldInput, Log, TEXT("SetupInputComponent: IA_DebugCommandKeyboard3をBindします"));
-        EIC->BindAction(InputRouter->IA_DebugCommandKeyboard3, ETriggerEvent::Started, this, &ARldPlayerController::OnDebugCommandKeyboard3Started);
+        UE_LOG(
+            LogRldInput,
+            Verbose,
+            TEXT("SetupInputComponent: Actor=%s IA_DebugCommandKeyboard3をBindします"),
+            *GetNameSafe(this)
+        );
+
+        enhancedInputComponent->BindAction(
+            InputRouter->IA_DebugCommandKeyboard3,
+            ETriggerEvent::Started,
+            this,
+            &ARldPlayerController::OnDebugCommandKeyboard3Started
+        );
     }
     else
     {
-        UE_LOG(LogRldInput, Warning, TEXT("SetupInputComponent: IA_DebugCommandKeyboard3がnull"));
+        UE_LOG(
+            LogRldInput,
+            Warning,
+            TEXT("SetupInputComponent: Actor=%s IA_DebugCommandKeyboard3がnullのためBindしません"),
+            *GetNameSafe(this)
+        );
     }
 
     // キーボード用デバッグコマンド4InputAction取得時はBind
     if (InputRouter->IA_DebugCommandKeyboard4)
     {
-        UE_LOG(LogRldInput, Log, TEXT("SetupInputComponent: IA_DebugCommandKeyboard4をBindします"));
-        EIC->BindAction(InputRouter->IA_DebugCommandKeyboard4, ETriggerEvent::Started, this, &ARldPlayerController::OnDebugCommandKeyboard4Started);
+        UE_LOG(
+            LogRldInput,
+            Verbose,
+            TEXT("SetupInputComponent: Actor=%s IA_DebugCommandKeyboard4をBindします"),
+            *GetNameSafe(this)
+        );
+
+        enhancedInputComponent->BindAction(
+            InputRouter->IA_DebugCommandKeyboard4,
+            ETriggerEvent::Started,
+            this,
+            &ARldPlayerController::OnDebugCommandKeyboard4Started
+        );
     }
     else
     {
-        UE_LOG(LogRldInput, Warning, TEXT("SetupInputComponent: IA_DebugCommandKeyboard4がnull"));
+        UE_LOG(
+            LogRldInput,
+            Warning,
+            TEXT("SetupInputComponent: Actor=%s IA_DebugCommandKeyboard4がnullのためBindしません"),
+            *GetNameSafe(this)
+        );
     }
 
     // キーボード用デバッグコマンド5InputAction取得時はBind
     if (InputRouter->IA_DebugCommandKeyboard5)
     {
-        UE_LOG(LogRldInput, Log, TEXT("SetupInputComponent: IA_DebugCommandKeyboard5をBindします"));
-        EIC->BindAction(InputRouter->IA_DebugCommandKeyboard5, ETriggerEvent::Started, this, &ARldPlayerController::OnDebugCommandKeyboard5Started);
+        UE_LOG(
+            LogRldInput,
+            Verbose,
+            TEXT("SetupInputComponent: Actor=%s IA_DebugCommandKeyboard5をBindします"),
+            *GetNameSafe(this)
+        );
+
+        enhancedInputComponent->BindAction(
+            InputRouter->IA_DebugCommandKeyboard5,
+            ETriggerEvent::Started,
+            this,
+            &ARldPlayerController::OnDebugCommandKeyboard5Started
+        );
     }
     else
     {
-        UE_LOG(LogRldInput, Warning, TEXT("SetupInputComponent: IA_DebugCommandKeyboard5がnull"));
+        UE_LOG(
+            LogRldInput,
+            Warning,
+            TEXT("SetupInputComponent: Actor=%s IA_DebugCommandKeyboard5がnullのためBindしません"),
+            *GetNameSafe(this)
+        );
     }
 
     // ゲームパッド用デバッグコマンド1InputAction取得時はBind
     if (InputRouter->IA_DebugCommandGamepad1)
     {
-        UE_LOG(LogRldInput, Log, TEXT("SetupInputComponent: IA_DebugCommandGamepad1をBindします"));
-        EIC->BindAction(InputRouter->IA_DebugCommandGamepad1, ETriggerEvent::Started, this, &ARldPlayerController::OnDebugCommandGamepad1Started);
+        UE_LOG(
+            LogRldInput,
+            Verbose,
+            TEXT("SetupInputComponent: Actor=%s IA_DebugCommandGamepad1をBindします"),
+            *GetNameSafe(this)
+        );
+
+        enhancedInputComponent->BindAction(
+            InputRouter->IA_DebugCommandGamepad1,
+            ETriggerEvent::Started,
+            this,
+            &ARldPlayerController::OnDebugCommandGamepad1Started
+        );
     }
     else
     {
-        UE_LOG(LogRldInput, Warning, TEXT("SetupInputComponent: IA_DebugCommandGamepad1がnull"));
+        UE_LOG(
+            LogRldInput,
+            Warning,
+            TEXT("SetupInputComponent: Actor=%s IA_DebugCommandGamepad1がnullのためBindしません"),
+            *GetNameSafe(this)
+        );
     }
 
     // ゲームパッド用デバッグコマンド2InputAction取得時はBind
     if (InputRouter->IA_DebugCommandGamepad2)
     {
-        UE_LOG(LogRldInput, Log, TEXT("SetupInputComponent: IA_DebugCommandGamepad2をBindします"));
-        EIC->BindAction(InputRouter->IA_DebugCommandGamepad2, ETriggerEvent::Started, this, &ARldPlayerController::OnDebugCommandGamepad2Started);
+        UE_LOG(
+            LogRldInput,
+            Verbose,
+            TEXT("SetupInputComponent: Actor=%s IA_DebugCommandGamepad2をBindします"),
+            *GetNameSafe(this)
+        );
+
+        enhancedInputComponent->BindAction(
+            InputRouter->IA_DebugCommandGamepad2,
+            ETriggerEvent::Started,
+            this,
+            &ARldPlayerController::OnDebugCommandGamepad2Started
+        );
     }
     else
     {
-        UE_LOG(LogRldInput, Warning, TEXT("SetupInputComponent: IA_DebugCommandGamepad2がnull"));
+        UE_LOG(
+            LogRldInput,
+            Warning,
+            TEXT("SetupInputComponent: Actor=%s IA_DebugCommandGamepad2がnullのためBindしません"),
+            *GetNameSafe(this)
+        );
     }
+
+    UE_LOG(
+        LogRldInput,
+        Verbose,
+        TEXT("SetupInputComponent: Actor=%s 入力Bind完了"),
+        *GetNameSafe(this)
+    );
 }
 
 // ----- 公開API -----
@@ -341,10 +700,20 @@ void ARldPlayerController::SetupInputComponent()
 /** 共通入力モードを切り替える */
 void ARldPlayerController::SetCommonInputMode(ECmnInputMode Mode)
 {
-    if (InputRouter)
+    // 入力ルーター未取得時は入力モードを切り替えない
+    if (!InputRouter)
     {
-        InputRouter->SetInputMode(Mode);
+        UE_LOG(
+            LogRldInput,
+            Warning,
+            TEXT("SetCommonInputMode: Actor=%s InputRouterがnullのため入力モードを切り替えません"),
+            *GetNameSafe(this)
+        );
+
+        return;
     }
+
+    InputRouter->SetInputMode(Mode);
 }
 
 /** 入力ルーターを取得する */
@@ -363,10 +732,11 @@ void ARldPlayerController::HandleInputSettingsChanged(const FInputRuntimeSetting
 
     UE_LOG(
         LogRldInput,
-        Log,
-        TEXT("HandleInputSettingsChanged: 左右反転=%d 上下反転=%d"),
-        bInvertCameraX ? 1 : 0,
-        bInvertCameraY ? 1 : 0
+        Verbose,
+        TEXT("HandleInputSettingsChanged: Actor=%s 入力設定を反映しました 左右反転=%s 上下反転=%s"),
+        *GetNameSafe(this),
+        bInvertCameraX ? TEXT("有効") : TEXT("無効"),
+        bInvertCameraY ? TEXT("有効") : TEXT("無効")
     );
 }
 
@@ -378,123 +748,168 @@ void ARldPlayerController::OnMoveStarted(const FInputActionValue& Value)
     // ゲームモード以外では移動処理しない
     if (!InputRouter || !InputRouter->IsGameMode())
     {
-        UE_LOG(LogRldInput, Verbose, TEXT("OnMoveStarted: ゲームモード以外のため処理しない"));
+        UE_LOG(
+            LogRldInput,
+            Verbose,
+            TEXT("OnMoveStarted: Actor=%s ゲームモード以外のため処理しません"),
+            *GetNameSafe(this)
+        );
+
         return;
     }
 
     // デバッグコマンド入力受付中は通常ゲーム入力を受け付けない
     if (IsHiddenDebugCommandInputActive())
     {
-        UE_LOG(LogRldInput, Verbose, TEXT("OnMoveStarted: デバッグコマンド入力受付中のため処理しない"));
+        UE_LOG(
+            LogRldInput,
+            Verbose,
+            TEXT("OnMoveStarted: Actor=%s デバッグコマンド入力受付中のため処理しません"),
+            *GetNameSafe(this)
+        );
+
         return;
     }
 
-    const FVector2D Axis = Value.Get<FVector2D>();
+    const FVector2D axis = Value.Get<FVector2D>();
 
     // 左スティック入力はTriggered側で処理
-    if (IsLikelyLeftStickInput(Axis))
+    if (IsLikelyLeftStickInput(axis))
     {
         return;
     }
 
-    const FString InputSourceText = BuildMoveInputSourceDebugText();
+    const FString inputSourceText = BuildMoveInputSourceDebugText();
 
     UE_LOG(
         LogRldInput,
-        Log,
-        TEXT("OnMoveStarted: 入力元=%s 生入力=(%f,%f)"),
-        *InputSourceText,
-        Axis.X,
-        Axis.Y
+        Verbose,
+        TEXT("OnMoveStarted: Actor=%s 移動入力を受け付けました 入力元=%s 生入力=(%f,%f)"),
+        *GetNameSafe(this),
+        *inputSourceText,
+        axis.X,
+        axis.Y
     );
 
-    FIntPoint Direction;
+    FIntPoint direction;
 
     // 方向確定失敗時は移動処理しない
-    if (!TryConvertMoveAxisToGridDir(Axis, Direction))
+    if (!TryConvertMoveAxisToGridDir(axis, direction))
     {
         UE_LOG(
             LogRldInput,
             Warning,
-            TEXT("OnMoveStarted: 方向変換に失敗しました 入力元=%s 生入力=(%f,%f)"),
-            *InputSourceText,
-            Axis.X,
-            Axis.Y
+            TEXT("OnMoveStarted: Actor=%s 方向変換に失敗しました 入力元=%s 生入力=(%f,%f)"),
+            *GetNameSafe(this),
+            *inputSourceText,
+            axis.X,
+            axis.Y
         );
+
         return;
     }
 
-    ProcessResolvedMoveDirection(Direction, InputSourceText, Axis);
+    ProcessResolvedMoveDirection(direction, inputSourceText, axis);
 }
 
 /** 移動入力の生値ログを出力する */
 void ARldPlayerController::OnMoveTriggered(const FInputActionValue& Value)
 {
-    const FVector2D Axis = Value.Get<FVector2D>();
-    const FString InputSourceText = BuildMoveInputSourceDebugText();
+    const FVector2D axis = Value.Get<FVector2D>();
+    const FString inputSourceText = BuildMoveInputSourceDebugText();
 
     UE_LOG(
         LogRldInput,
         Verbose,
-        TEXT("OnMoveTriggered: 入力元=%s 生入力=(%f,%f)"),
-        *InputSourceText,
-        Axis.X,
-        Axis.Y
+        TEXT("OnMoveTriggered: Actor=%s 入力元=%s 生入力=(%f,%f)"),
+        *GetNameSafe(this),
+        *inputSourceText,
+        axis.X,
+        axis.Y
     );
 
     // デバッグコマンド入力受付中は通常ゲーム入力を受け付けない
     if (IsHiddenDebugCommandInputActive())
     {
-        UE_LOG(LogRldInput, Verbose, TEXT("OnMoveTriggered: デバッグコマンド入力受付中のため処理しない"));
+        UE_LOG(
+            LogRldInput,
+            Verbose,
+            TEXT("OnMoveTriggered: Actor=%s デバッグコマンド入力受付中のため処理しません"),
+            *GetNameSafe(this)
+        );
+
         return;
     }
 
     // 左スティック入力のみTriggered側で処理
-    if (IsLikelyLeftStickInput(Axis))
+    if (IsLikelyLeftStickInput(axis))
     {
-        HandleLeftStickMoveTriggered(Axis);
+        HandleLeftStickMoveTriggered(axis);
     }
 }
 
-/** 待機入力を処理する */
-void ARldPlayerController::OnWaitStarted(const FInputActionValue& Value)
+/** 足踏み入力開始時の処理を行う */
+void ARldPlayerController::OnStepInPlaceModifierStarted(const FInputActionValue& Value)
 {
     // 未使用引数
     (void)Value;
 
-    // ゲームモード以外では待機処理しない
+    // ゲームモード以外では足踏み修飾を受け付けない
     if (!InputRouter || !InputRouter->IsGameMode())
     {
-        UE_LOG(LogRldInput, Verbose, TEXT("OnWaitStarted: ゲームモード以外のため処理しない"));
+        UE_LOG(
+            LogRldInput,
+            Verbose,
+            TEXT("OnStepInPlaceModifierStarted: Actor=%s ゲームモード以外のため処理しません"),
+            *GetNameSafe(this)
+        );
+
         return;
     }
 
     // デバッグコマンド入力受付中は通常ゲーム入力を受け付けない
     if (IsHiddenDebugCommandInputActive())
     {
-        UE_LOG(LogRldInput, Verbose, TEXT("OnWaitStarted: デバッグコマンド入力受付中のため処理しない"));
+        UE_LOG(
+            LogRldInput,
+            Verbose,
+            TEXT("OnStepInPlaceModifierStarted: Actor=%s デバッグコマンド入力受付中のため処理しません"),
+            *GetNameSafe(this)
+        );
+
         return;
     }
 
-    ARldPlayerCharacter* PlayerCharacter = GetRldPlayerCharacter();
+    bStepInPlaceModifierPressed = true;
 
-    // プレイヤーキャラクター未取得時は待機しない
-    if (!PlayerCharacter)
-    {
-        UE_LOG(LogRldInput, Warning, TEXT("OnWaitStarted: PlayerCharacterがnull"));
-        return;
-    }
-
-    // 待機入力時は押しっぱなし移動を停止
+    // 修飾状態が切り替わったため既存の押しっぱなし移動を停止する
     StopMoveRepeat();
 
     UE_LOG(
         LogRldInput,
-        Log,
-        TEXT("OnWaitStarted: 待機入力を受け付けました")
+        Verbose,
+        TEXT("OnStepInPlaceModifierStarted: Actor=%s 足踏み修飾入力を開始しました"),
+        *GetNameSafe(this)
     );
+}
 
-    PlayerCharacter->RequestWaitAction();
+/** 足踏み修飾入力終了時の処理を行う */
+void ARldPlayerController::OnStepInPlaceModifierCompleted(const FInputActionValue& Value)
+{
+    // 未使用引数
+    (void)Value;
+
+    bStepInPlaceModifierPressed = false;
+
+    // 修飾解除後に足踏みリピートが移動へ変わらないよう停止する
+    StopMoveRepeat();
+
+    UE_LOG(
+        LogRldInput,
+        Verbose,
+        TEXT("OnStepInPlaceModifierCompleted: Actor=%s 足踏み修飾入力を終了しました"),
+        *GetNameSafe(this)
+    );
 }
 
 /** 通常攻撃入力を処理する */
@@ -506,23 +921,41 @@ void ARldPlayerController::OnAttackStarted(const FInputActionValue& Value)
     // ゲームモード以外では通常攻撃処理しない
     if (!InputRouter || !InputRouter->IsGameMode())
     {
-        UE_LOG(LogRldInput, Verbose, TEXT("OnAttackStarted: ゲームモード以外のため処理しない"));
+        UE_LOG(
+            LogRldInput,
+            Verbose,
+            TEXT("OnAttackStarted: Actor=%s ゲームモード以外のため処理しません"),
+            *GetNameSafe(this)
+        );
+
         return;
     }
 
     // デバッグコマンド入力受付中は通常ゲーム入力を受け付けない
     if (IsHiddenDebugCommandInputActive())
     {
-        UE_LOG(LogRldInput, Verbose, TEXT("OnAttackStarted: デバッグコマンド入力受付中のため処理しない"));
+        UE_LOG(
+            LogRldInput,
+            Verbose,
+            TEXT("OnAttackStarted: Actor=%s デバッグコマンド入力受付中のため処理しません"),
+            *GetNameSafe(this)
+        );
+
         return;
     }
 
-    ARldPlayerCharacter* PlayerCharacter = GetRldPlayerCharacter();
+    ARldPlayerCharacter* playerCharacter = GetRldPlayerCharacter();
 
     // プレイヤーキャラクター未取得時は処理しない
-    if (!PlayerCharacter)
+    if (!playerCharacter)
     {
-        UE_LOG(LogRldInput, Warning, TEXT("OnAttackStarted: PlayerCharacterがnull"));
+        UE_LOG(
+            LogRldInput,
+            Warning,
+            TEXT("OnAttackStarted: Actor=%s PlayerCharacterがnullのため通常攻撃を実行しません"),
+            *GetNameSafe(this)
+        );
+
         return;
     }
 
@@ -530,11 +963,12 @@ void ARldPlayerController::OnAttackStarted(const FInputActionValue& Value)
 
     UE_LOG(
         LogRldInput,
-        Log,
-        TEXT("OnAttackStarted: 通常攻撃入力を受け付けました")
+        Verbose,
+        TEXT("OnAttackStarted: Actor=%s 通常攻撃入力を受け付けました"),
+        *GetNameSafe(playerCharacter)
     );
 
-    PlayerCharacter->RequestAttackAction();
+    playerCharacter->RequestAttackAction();
 }
 
 /** インタラクト入力を処理する */
@@ -546,23 +980,41 @@ void ARldPlayerController::OnInteractStarted(const FInputActionValue& Value)
     // ゲームモード以外ではインタラクト処理しない
     if (!InputRouter || !InputRouter->IsGameMode())
     {
-        UE_LOG(LogRldInput, Verbose, TEXT("OnInteractStarted: ゲームモード以外のため処理しない"));
+        UE_LOG(
+            LogRldInput,
+            Verbose,
+            TEXT("OnInteractStarted: Actor=%s ゲームモード以外のため処理しません"),
+            *GetNameSafe(this)
+        );
+
         return;
     }
 
     // デバッグコマンド入力受付中は通常ゲーム入力を受け付けない
     if (IsHiddenDebugCommandInputActive())
     {
-        UE_LOG(LogRldInput, Verbose, TEXT("OnInteractStarted: デバッグコマンド入力受付中のため処理しない"));
+        UE_LOG(
+            LogRldInput,
+            Verbose,
+            TEXT("OnInteractStarted: Actor=%s デバッグコマンド入力受付中のため処理しません"),
+            *GetNameSafe(this)
+        );
+
         return;
     }
 
-    ARldPlayerCharacter* PlayerCharacter = GetRldPlayerCharacter();
+    ARldPlayerCharacter* playerCharacter = GetRldPlayerCharacter();
 
     // プレイヤーキャラクター未取得時は処理しない
-    if (!PlayerCharacter)
+    if (!playerCharacter)
     {
-        UE_LOG(LogRldInput, Warning, TEXT("OnInteractStarted: PlayerCharacterがnull"));
+        UE_LOG(
+            LogRldInput,
+            Warning,
+            TEXT("OnInteractStarted: Actor=%s PlayerCharacterがnullのためインタラクトを実行しません"),
+            *GetNameSafe(this)
+        );
+
         return;
     }
 
@@ -570,11 +1022,12 @@ void ARldPlayerController::OnInteractStarted(const FInputActionValue& Value)
 
     UE_LOG(
         LogRldInput,
-        Log,
-        TEXT("OnInteractStarted: インタラクト入力を受け付けました")
+        Verbose,
+        TEXT("OnInteractStarted: Actor=%s インタラクト入力を受け付けました"),
+        *GetNameSafe(playerCharacter)
     );
 
-    PlayerCharacter->RequestInteractAction();
+    playerCharacter->RequestInteractAction();
 }
 
 /** メニュー入力を処理する */
@@ -586,14 +1039,26 @@ void ARldPlayerController::OnMenuStarted(const FInputActionValue& Value)
     // ゲームモード以外ではメニュー処理しない
     if (!InputRouter || !InputRouter->IsGameMode())
     {
-        UE_LOG(LogRldInput, Verbose, TEXT("OnMenuStarted: ゲームモード以外のため処理しない"));
+        UE_LOG(
+            LogRldInput,
+            Verbose,
+            TEXT("OnMenuStarted: Actor=%s ゲームモード以外のため処理しません"),
+            *GetNameSafe(this)
+        );
+
         return;
     }
 
     // デバッグコマンド入力受付中は通常ゲーム入力を受け付けない
     if (IsHiddenDebugCommandInputActive())
     {
-        UE_LOG(LogRldInput, Verbose, TEXT("OnMenuStarted: デバッグコマンド入力受付中のため処理しない"));
+        UE_LOG(
+            LogRldInput,
+            Verbose,
+            TEXT("OnMenuStarted: Actor=%s デバッグコマンド入力受付中のため処理しません"),
+            *GetNameSafe(this)
+        );
+
         return;
     }
 
@@ -601,8 +1066,9 @@ void ARldPlayerController::OnMenuStarted(const FInputActionValue& Value)
 
     UE_LOG(
         LogRldInput,
-        Log,
-        TEXT("OnMenuStarted: メニュー入力を受け付けました")
+        Verbose,
+        TEXT("OnMenuStarted: Actor=%s メニュー入力を受け付けました"),
+        *GetNameSafe(this)
     );
 
     // TODO: メインメニューWidgetを表示する
@@ -611,113 +1077,165 @@ void ARldPlayerController::OnMenuStarted(const FInputActionValue& Value)
 /** カメラ視点入力を処理する */
 void ARldPlayerController::OnCameraLookTriggered(const FInputActionValue& Value)
 {
-    const FVector2D RawAxis = Value.Get<FVector2D>();
+    const FVector2D rawAxis = Value.Get<FVector2D>();
 
     UE_LOG(
         LogRldInput,
-        Log,
-        TEXT("OnCameraLookTriggered: 生入力=(%f,%f)"),
-        RawAxis.X,
-        RawAxis.Y
+        Verbose,
+        TEXT("OnCameraLookTriggered: Actor=%s 生入力=(%f,%f)"),
+        *GetNameSafe(this),
+        rawAxis.X,
+        rawAxis.Y
     );
 
     // ゲームモード以外ではカメラ視点処理しない
     if (!InputRouter || !InputRouter->IsGameMode())
     {
-        UE_LOG(LogRldInput, Verbose, TEXT("OnCameraLookTriggered: ゲームモード以外のため処理しない"));
+        UE_LOG(
+            LogRldInput,
+            Verbose,
+            TEXT("OnCameraLookTriggered: Actor=%s ゲームモード以外のため処理しません"),
+            *GetNameSafe(this)
+        );
+
         return;
     }
 
     // デバッグコマンド入力受付中は通常ゲーム入力を受け付けない
     if (IsHiddenDebugCommandInputActive())
     {
-        UE_LOG(LogRldInput, Verbose, TEXT("OnCameraLookTriggered: デバッグコマンド入力受付中のため処理しない"));
+        UE_LOG(
+            LogRldInput,
+            Verbose,
+            TEXT("OnCameraLookTriggered: Actor=%s デバッグコマンド入力受付中のため処理しません"),
+            *GetNameSafe(this)
+        );
+
         return;
     }
 
-    FVector2D Axis = RawAxis;
+    FVector2D axis = rawAxis;
 
-    // 反転設定を適用
+    // 左右反転設定を適用
     if (bInvertCameraX)
     {
-        Axis.X *= -1.0f;
+        axis.X *= -1.0f;
     }
 
+    // 上下反転設定を適用
     if (bInvertCameraY)
     {
-        Axis.Y *= -1.0f;
+        axis.Y *= -1.0f;
     }
 
     UE_LOG(
         LogRldInput,
-        Log,
-        TEXT("OnCameraLookTriggered: 反転適用後入力=(%f,%f)"),
-        Axis.X,
-        Axis.Y
+        Verbose,
+        TEXT("OnCameraLookTriggered: Actor=%s 反転適用後入力=(%f,%f)"),
+        *GetNameSafe(this),
+        axis.X,
+        axis.Y
     );
 
-    ARldPlayerCharacter* PlayerCharacter = GetRldPlayerCharacter();
+    ARldPlayerCharacter* playerCharacter = GetRldPlayerCharacter();
 
     // プレイヤーキャラクター未取得時は視点入力しない
-    if (!PlayerCharacter)
+    if (!playerCharacter)
     {
-        UE_LOG(LogRldInput, Warning, TEXT("OnCameraLookTriggered: PlayerCharacterがnull"));
+        UE_LOG(
+            LogRldInput,
+            Warning,
+            TEXT("OnCameraLookTriggered: Actor=%s PlayerCharacterがnullのため視点入力を処理しません"),
+            *GetNameSafe(this)
+        );
+
         return;
     }
 
     // 視点入力受付不可時は処理しない
-    if (!PlayerCharacter->CanAcceptLookInput())
+    if (!playerCharacter->CanAcceptLookInput())
     {
-        UE_LOG(LogRldInput, Verbose, TEXT("OnCameraLookTriggered: 視点入力を受け付けないため処理しない"));
+        UE_LOG(
+            LogRldInput,
+            Verbose,
+            TEXT("OnCameraLookTriggered: Actor=%s 視点入力を受け付けないため処理しません"),
+            *GetNameSafe(playerCharacter)
+        );
+
         return;
     }
 
-    PlayerCharacter->RequestLookInput(Axis);
+    playerCharacter->RequestLookInput(axis);
 }
 
 /** カメラズーム入力を処理する */
 void ARldPlayerController::OnCameraZoomTriggered(const FInputActionValue& Value)
 {
-    const float ZoomValue = Value.Get<float>();
+    const float zoomValue = Value.Get<float>();
 
     UE_LOG(
         LogRldInput,
-        Log,
-        TEXT("OnCameraZoomTriggered: 生入力=%f"),
-        ZoomValue
+        Verbose,
+        TEXT("OnCameraZoomTriggered: Actor=%s 生入力=%f"),
+        *GetNameSafe(this),
+        zoomValue
     );
 
     // ゲームモード以外ではカメラズーム処理しない
     if (!InputRouter || !InputRouter->IsGameMode())
     {
-        UE_LOG(LogRldInput, Verbose, TEXT("OnCameraZoomTriggered: ゲームモード以外のため処理しない"));
+        UE_LOG(
+            LogRldInput,
+            Verbose,
+            TEXT("OnCameraZoomTriggered: Actor=%s ゲームモード以外のため処理しません"),
+            *GetNameSafe(this)
+        );
+
         return;
     }
 
     // デバッグコマンド入力受付中は通常ゲーム入力を受け付けない
     if (IsHiddenDebugCommandInputActive())
     {
-        UE_LOG(LogRldInput, Verbose, TEXT("OnCameraZoomTriggered: デバッグコマンド入力受付中のため処理しない"));
+        UE_LOG(
+            LogRldInput,
+            Verbose,
+            TEXT("OnCameraZoomTriggered: Actor=%s デバッグコマンド入力受付中のため処理しません"),
+            *GetNameSafe(this)
+        );
+
         return;
     }
 
-    ARldPlayerCharacter* PlayerCharacter = GetRldPlayerCharacter();
+    ARldPlayerCharacter* playerCharacter = GetRldPlayerCharacter();
 
     // プレイヤーキャラクター未取得時はズーム入力しない
-    if (!PlayerCharacter)
+    if (!playerCharacter)
     {
-        UE_LOG(LogRldInput, Warning, TEXT("OnCameraZoomTriggered: PlayerCharacterがnull"));
+        UE_LOG(
+            LogRldInput,
+            Warning,
+            TEXT("OnCameraZoomTriggered: Actor=%s PlayerCharacterがnullのためズーム入力を処理しません"),
+            *GetNameSafe(this)
+        );
+
         return;
     }
 
     // ズーム入力受付不可時は処理しない
-    if (!PlayerCharacter->CanAcceptZoomInput())
+    if (!playerCharacter->CanAcceptZoomInput())
     {
-        UE_LOG(LogRldInput, Verbose, TEXT("OnCameraZoomTriggered: ズーム入力を受け付けないため処理しない"));
+        UE_LOG(
+            LogRldInput,
+            Verbose,
+            TEXT("OnCameraZoomTriggered: Actor=%s ズーム入力を受け付けないため処理しません"),
+            *GetNameSafe(playerCharacter)
+        );
+
         return;
     }
 
-    PlayerCharacter->RequestZoomInput(ZoomValue);
+    playerCharacter->RequestZoomInput(zoomValue);
 }
 
 // ----- UI操作の入力 -----
@@ -731,29 +1249,30 @@ void ARldPlayerController::OnUIDirectionTriggered(const FInputActionValue& Value
         return;
     }
 
-    const FVector2D Axis = Value.Get<FVector2D>();
+    const FVector2D axis = Value.Get<FVector2D>();
 
     // 表示中のデバッグオプションがある場合は専用フォーカス移動を行う
-    if (URldDebugOptionsWidget* DebugOptionsWidget = GetActiveDebugOptionsWidget())
+    if (URldDebugOptionsWidget* debugOptionsWidget = GetActiveDebugOptionsWidget())
     {
-        FIntPoint Direction;
+        FIntPoint direction;
 
-        if (InputRouter->GetMoveDirFromAxis(Axis, Direction))
+        // UI方向入力を8方向へ変換できた場合のみフォーカスを移動
+        if (InputRouter->GetMoveDirFromAxis(axis, direction))
         {
-            if (Direction.Y > 0)
+            if (direction.Y > 0)
             {
-                DebugOptionsWidget->MoveDebugFocus(-1);
+                debugOptionsWidget->MoveDebugFocus(-1);
             }
-            else if (Direction.Y < 0)
+            else if (direction.Y < 0)
             {
-                DebugOptionsWidget->MoveDebugFocus(1);
+                debugOptionsWidget->MoveDebugFocus(1);
             }
         }
 
         return;
     }
 
-    InputRouter->HandleUIDirectionAxis(Axis);
+    InputRouter->HandleUIDirectionAxis(axis);
 }
 
 /** UI決定入力を処理する */
@@ -768,9 +1287,10 @@ void ARldPlayerController::OnUIConfirmStarted(const FInputActionValue& Value)
         return;
     }
 
-    if (URldDebugOptionsWidget* DebugOptionsWidget = GetActiveDebugOptionsWidget())
+    // 表示中のデバッグオプションがある場合はフォーカス項目を決定
+    if (URldDebugOptionsWidget* debugOptionsWidget = GetActiveDebugOptionsWidget())
     {
-        DebugOptionsWidget->ConfirmFocusedDebugItem();
+        debugOptionsWidget->ConfirmFocusedDebugItem();
     }
 }
 
@@ -786,9 +1306,10 @@ void ARldPlayerController::OnUICloseStarted(const FInputActionValue& Value)
         return;
     }
 
-    if (URldDebugOptionsWidget* DebugOptionsWidget = GetActiveDebugOptionsWidget())
+    // 表示中のデバッグオプションがある場合は閉じる
+    if (URldDebugOptionsWidget* debugOptionsWidget = GetActiveDebugOptionsWidget())
     {
-        DebugOptionsWidget->CloseDebugOptions();
+        debugOptionsWidget->CloseDebugOptions();
         SetCommonInputMode(ECmnInputMode::Game);
     }
 }
@@ -802,8 +1323,8 @@ void ARldPlayerController::OnUIScrollTriggered(const FInputActionValue& Value)
         return;
     }
 
-    const float Amount = Value.Get<float>();
-    InputRouter->HandleUIScrollAxis(Amount);
+    const float amount = Value.Get<float>();
+    InputRouter->HandleUIScrollAxis(amount);
 }
 
 // ----- デバッグUI入力 -----
@@ -820,22 +1341,23 @@ void ARldPlayerController::OnDebugCommandPrefixStarted(const FInputActionValue& 
         return;
     }
 
-    UWorld* World = GetWorld();
+    UWorld* world = GetWorld();
 
-    if (!World)
+    // World未取得時は処理しない
+    if (!world)
     {
         return;
     }
 
-    const double CurrentTime = World->GetTimeSeconds();
+    const double currentTime = world->GetTimeSeconds();
 
     // 入力間隔が空いた場合はコマンド状態を初期化
-    if ((CurrentTime - lastHiddenDebugInputTime) > hiddenDebugCommandTimeout)
+    if ((currentTime - lastHiddenDebugInputTime) > hiddenDebugCommandTimeout)
     {
         ResetDebugCommandState();
     }
 
-    lastHiddenDebugInputTime = CurrentTime;
+    lastHiddenDebugInputTime = currentTime;
     ++debugCommandPrefixCount;
     debugCommandIndex = 0;
     debugCommandInputType = ERldDebugCommandInputType::None;
@@ -843,7 +1365,8 @@ void ARldPlayerController::OnDebugCommandPrefixStarted(const FInputActionValue& 
     UE_LOG(
         LogRldInput,
         Verbose,
-        TEXT("OnDebugCommandPrefixStarted: デバッグコマンド開始入力回数=%d"),
+        TEXT("OnDebugCommandPrefixStarted: Actor=%s デバッグコマンド開始入力回数=%d"),
+        *GetNameSafe(this),
         debugCommandPrefixCount
     );
 }
@@ -851,69 +1374,83 @@ void ARldPlayerController::OnDebugCommandPrefixStarted(const FInputActionValue& 
 /** キーボード用デバッグコマンド第1入力を処理する */
 void ARldPlayerController::OnDebugCommandKeyboard1Started(const FInputActionValue& Value)
 {
+    // 未使用引数
     (void)Value;
+
     HandleKeyboardDebugCommandCharacter(0);
 }
 
 /** キーボード用デバッグコマンド第2入力を処理する */
 void ARldPlayerController::OnDebugCommandKeyboard2Started(const FInputActionValue& Value)
 {
+    // 未使用引数
     (void)Value;
+
     HandleKeyboardDebugCommandCharacter(1);
 }
 
 /** キーボード用デバッグコマンド第3入力を処理する */
 void ARldPlayerController::OnDebugCommandKeyboard3Started(const FInputActionValue& Value)
 {
+    // 未使用引数
     (void)Value;
+
     HandleKeyboardDebugCommandCharacter(2);
 }
 
 /** キーボード用デバッグコマンド第4入力を処理する */
 void ARldPlayerController::OnDebugCommandKeyboard4Started(const FInputActionValue& Value)
 {
+    // 未使用引数
     (void)Value;
+
     HandleKeyboardDebugCommandCharacter(3);
 }
 
 /** キーボード用デバッグコマンド第5入力を処理する */
 void ARldPlayerController::OnDebugCommandKeyboard5Started(const FInputActionValue& Value)
 {
+    // 未使用引数
     (void)Value;
+
     HandleKeyboardDebugCommandCharacter(4);
 }
 
 /** ゲームパッド用デバッグコマンド第1入力を処理する */
 void ARldPlayerController::OnDebugCommandGamepad1Started(const FInputActionValue& Value)
 {
+    // 未使用引数
     (void)Value;
+
     HandleGamepadDebugCommandInput(true);
 }
 
 /** ゲームパッド用デバッグコマンド第2入力を処理する */
 void ARldPlayerController::OnDebugCommandGamepad2Started(const FInputActionValue& Value)
 {
+    // 未使用引数
     (void)Value;
+
     HandleGamepadDebugCommandInput(false);
 }
 
 // ----- ゲーム固有入力変換 -----
 
-/** 入力軸をカメラ基準のグリッド4方向へ変換する */
+/** 入力軸をカメラ基準のグリッド8方向へ変換する */
 bool ARldPlayerController::TryConvertMoveAxisToGridDir(
     const FVector2D& Axis,
     FIntPoint& OutDirection
 ) const
 {
-    FVector WorldDirection;
+    FVector worldDirection;
 
     // ワールド平面方向に変換できない場合は失敗
-    if (!TryConvertInputAxisToCameraRelativeWorldDir(Axis, WorldDirection))
+    if (!TryConvertInputAxisToCameraRelativeWorldDir(Axis, worldDirection))
     {
         return false;
     }
 
-    return TryConvertWorldDirToGridDir(WorldDirection, OutDirection);
+    return TryConvertWorldDirToGridDir(worldDirection, OutDirection);
 }
 
 /** 入力軸をカメラ基準のワールド平面方向へ変換する */
@@ -924,47 +1461,49 @@ bool ARldPlayerController::TryConvertInputAxisToCameraRelativeWorldDir(
 {
     OutWorldDirection = FVector::ZeroVector;
 
-    const float InputDeadZone = 0.5f;
+    const float inputDeadZone = 0.5f;
 
-    const float AbsX = FMath::Abs(Axis.X);
-    const float AbsY = FMath::Abs(Axis.Y);
+    const float absX = FMath::Abs(Axis.X);
+    const float absY = FMath::Abs(Axis.Y);
 
     // 入力しきい値未満なら無効
-    if (AbsX < InputDeadZone && AbsY < InputDeadZone)
+    if (absX < inputDeadZone && absY < inputDeadZone)
     {
         return false;
     }
+
+    const ARldPlayerCharacter* playerCharacter = GetRldPlayerCharacter();
 
     // プレイヤーキャラクター未取得時は変換失敗
-    const ARldPlayerCharacter* PlayerCharacter = GetRldPlayerCharacter();
-    if (!PlayerCharacter)
+    if (!playerCharacter)
     {
         return false;
     }
 
-    const FVector CameraForward = PlayerCharacter->GetCameraPlanarForward();
-    const FVector CameraRight = PlayerCharacter->GetCameraPlanarRight();
+    const FVector cameraForward = playerCharacter->GetCameraPlanarForward();
+    const FVector cameraRight = playerCharacter->GetCameraPlanarRight();
 
     // 入力軸をワールド平面方向へ変換
-    FVector MoveWorldDirection =
-        (CameraForward * Axis.Y) +
-        (CameraRight * Axis.X);
+    FVector moveWorldDirection =
+        (cameraForward * Axis.Y) +
+        (cameraRight * Axis.X);
 
-    MoveWorldDirection.Z = 0.0f;
+    moveWorldDirection.Z = 0.0f;
 
     // 平面方向が無効な場合は変換失敗
-    if (MoveWorldDirection.IsNearlyZero(KINDA_SMALL_NUMBER))
+    if (moveWorldDirection.IsNearlyZero(KINDA_SMALL_NUMBER))
     {
         return false;
     }
 
-    MoveWorldDirection.Normalize();
-    OutWorldDirection = MoveWorldDirection;
+    moveWorldDirection.Normalize();
+    OutWorldDirection = moveWorldDirection;
 
     UE_LOG(
         LogRldInput,
         Verbose,
-        TEXT("TryConvertInputAxisToCameraRelativeWorldDir: 入力=(%f,%f) ワールド方向=(%f,%f,%f)"),
+        TEXT("TryConvertInputAxisToCameraRelativeWorldDir: Actor=%s 入力=(%f,%f) ワールド方向=(%f,%f,%f)"),
+        *GetNameSafe(this),
         Axis.X,
         Axis.Y,
         OutWorldDirection.X,
@@ -975,7 +1514,7 @@ bool ARldPlayerController::TryConvertInputAxisToCameraRelativeWorldDir(
     return true;
 }
 
-/** ワールド平面方向をグリッド4方向へ変換する */
+/** ワールド平面方向をグリッド8方向へ変換する */
 bool ARldPlayerController::TryConvertWorldDirToGridDir(
     const FVector& WorldDirection,
     FIntPoint& OutGridDirection
@@ -983,33 +1522,45 @@ bool ARldPlayerController::TryConvertWorldDirToGridDir(
 {
     OutGridDirection = FIntPoint::ZeroValue;
 
-    const float AbsX = FMath::Abs(WorldDirection.X);
-    const float AbsY = FMath::Abs(WorldDirection.Y);
+    const float absX = FMath::Abs(WorldDirection.X);
+    const float absY = FMath::Abs(WorldDirection.Y);
 
     // ワールド平面方向が無効な場合は変換失敗
-    if (AbsX < KINDA_SMALL_NUMBER && AbsY < KINDA_SMALL_NUMBER)
+    if (absX < KINDA_SMALL_NUMBER && absY < KINDA_SMALL_NUMBER)
     {
         return false;
     }
 
-    // 主軸優先で4方向へ変換
-    if (AbsX >= AbsY)
+    const float maxAxis = FMath::Max(absX, absY);
+    const float minAxis = FMath::Min(absX, absY);
+
+    // 大きい軸に対して小さい軸がこの割合以上なら斜め方向として扱う
+    const float diagonalRatioThreshold = 0.50f;
+
+    const int32 signX = (WorldDirection.X >= 0.0f) ? 1 : -1;
+    const int32 signY = (WorldDirection.Y >= 0.0f) ? 1 : -1;
+
+    // X/Y両方の入力が十分にある場合は斜め方向へ変換
+    if ((minAxis / maxAxis) >= diagonalRatioThreshold)
     {
-        OutGridDirection = (WorldDirection.X >= 0.0f)
-            ? FIntPoint(1, 0)
-            : FIntPoint(-1, 0);
+        OutGridDirection = FIntPoint(signX, signY);
     }
+    // X軸が強い場合は左右方向へ変換
+    else if (absX > absY)
+    {
+        OutGridDirection = FIntPoint(signX, 0);
+    }
+    // Y軸が強い場合は上下方向へ変換
     else
     {
-        OutGridDirection = (WorldDirection.Y >= 0.0f)
-            ? FIntPoint(0, 1)
-            : FIntPoint(0, -1);
+        OutGridDirection = FIntPoint(0, signY);
     }
 
     UE_LOG(
         LogRldInput,
         Verbose,
-        TEXT("TryConvertWorldDirToGridDir: ワールド方向=(%f,%f) グリッド方向=(%d,%d)"),
+        TEXT("TryConvertWorldDirToGridDir: Actor=%s ワールド方向=(%f,%f) グリッド方向=(%d,%d)"),
+        *GetNameSafe(this),
         WorldDirection.X,
         WorldDirection.Y,
         OutGridDirection.X,
@@ -1028,48 +1579,69 @@ void ARldPlayerController::ProcessResolvedMoveDirection(
 {
     UE_LOG(
         LogRldInput,
-        Log,
-        TEXT("ProcessResolvedMoveDirection: 入力元=%s 確定方向=(%d,%d) 生入力=(%f,%f)"),
+        Verbose,
+        TEXT("ProcessResolvedMoveDirection: Actor=%s 移動方向確定 入力元=%s 確定方向=(%d,%d) 生入力=(%f,%f) 足踏み修飾=%s"),
+        *GetNameSafe(this),
         *InputSourceText,
         Direction.X,
         Direction.Y,
         Axis.X,
-        Axis.Y
+        Axis.Y,
+        bStepInPlaceModifierPressed ? TEXT("有効") : TEXT("無効")
     );
 
     StartMoveRepeat(Direction, InputSourceText, Axis);
 
-    ARldPlayerCharacter* PlayerCharacter = GetRldPlayerCharacter();
+    ARldPlayerCharacter* playerCharacter = GetRldPlayerCharacter();
 
-    // プレイヤーキャラクター未取得時は移動処理しない
-    if (!PlayerCharacter)
+    // プレイヤーキャラクター未取得時は処理しない
+    if (!playerCharacter)
     {
-        UE_LOG(LogRldInput, Warning, TEXT("ProcessResolvedMoveDirection: PlayerCharacterがnull"));
+        UE_LOG(
+            LogRldInput,
+            Warning,
+            TEXT("ProcessResolvedMoveDirection: Actor=%s PlayerCharacterがnullのため処理を行いません"),
+            *GetNameSafe(this)
+        );
+
         return;
     }
 
     // 移動入力受付不可時は処理しない
-    if (!PlayerCharacter->CanAcceptMoveInput())
+    if (!playerCharacter->CanAcceptMoveInput())
     {
-        UE_LOG(LogRldInput, Verbose, TEXT("ProcessResolvedMoveDirection: 移動入力を受け付けないため処理しない"));
+        UE_LOG(
+            LogRldInput,
+            Verbose,
+            TEXT("ProcessResolvedMoveDirection: Actor=%s 移動入力を受け付けないため処理しません"),
+            *GetNameSafe(playerCharacter)
+        );
+
         return;
     }
 
-    PlayerCharacter->RequestMoveDirection(Direction);
-}
+    // 足踏み入力中は移動せず、入力方向への足踏み行動として処理する
+    if (bStepInPlaceModifierPressed)
+    {
+        playerCharacter->RequestStepInPlaceAction(Direction);
+        return;
+    }
 
+    playerCharacter->RequestMoveDirection(Direction);
+}
 // ----- 左スティック専用処理 -----
 
 /** 左スティック入力かどうかを判定する */
 bool ARldPlayerController::IsLikelyLeftStickInput(const FVector2D& Axis) const
 {
-    const float LeftStickX = GetInputAnalogKeyState(EKeys::Gamepad_LeftX);
-    const float LeftStickY = GetInputAnalogKeyState(EKeys::Gamepad_LeftY);
+    const float leftStickX = GetInputAnalogKeyState(EKeys::Gamepad_LeftX);
+    const float leftStickY = GetInputAnalogKeyState(EKeys::Gamepad_LeftY);
 
     const bool bHasLeftStickAnalog =
-        !FMath::IsNearlyZero(LeftStickX, KINDA_SMALL_NUMBER) ||
-        !FMath::IsNearlyZero(LeftStickY, KINDA_SMALL_NUMBER);
+        !FMath::IsNearlyZero(leftStickX, KINDA_SMALL_NUMBER) ||
+        !FMath::IsNearlyZero(leftStickY, KINDA_SMALL_NUMBER);
 
+    // 左スティックのアナログ入力が取得できている場合は左スティック扱い
     if (bHasLeftStickAnalog)
     {
         return true;
@@ -1088,18 +1660,23 @@ bool ARldPlayerController::IsLikelyLeftStickInput(const FVector2D& Axis) const
 /** 左スティックの移動入力を処理する */
 void ARldPlayerController::HandleLeftStickMoveTriggered(const FVector2D& Axis)
 {
-    const float ReleaseThreshold = 0.25f;
-    const float ConfirmThreshold = 0.5f;
+    const float releaseThreshold = 0.25f;
+    const float confirmThreshold = 0.5f;
 
-    const float AbsX = FMath::Abs(Axis.X);
-    const float AbsY = FMath::Abs(Axis.Y);
+    const float absX = FMath::Abs(Axis.X);
+    const float absY = FMath::Abs(Axis.Y);
 
     // ニュートラル復帰時は再入力可能にする
-    if (AbsX < ReleaseThreshold && AbsY < ReleaseThreshold)
+    if (absX < releaseThreshold && absY < releaseThreshold)
     {
         if (bLeftStickMoveConsumed)
         {
-            UE_LOG(LogRldInput, Verbose, TEXT("HandleLeftStickMoveTriggered: 左スティックがニュートラルへ戻りました"));
+            UE_LOG(
+                LogRldInput,
+                Verbose,
+                TEXT("HandleLeftStickMoveTriggered: Actor=%s 左スティックがニュートラルへ戻りました"),
+                *GetNameSafe(this)
+            );
         }
 
         bLeftStickMoveConsumed = false;
@@ -1114,30 +1691,32 @@ void ARldPlayerController::HandleLeftStickMoveTriggered(const FVector2D& Axis)
     }
 
     // 確定しきい値未満ならまだ処理しない
-    if (AbsX < ConfirmThreshold && AbsY < ConfirmThreshold)
+    if (absX < confirmThreshold && absY < confirmThreshold)
     {
         return;
     }
 
-    FIntPoint Direction;
+    FIntPoint direction;
 
     // 方向確定失敗時は処理しない
-    if (!TryConvertMoveAxisToGridDir(Axis, Direction))
+    if (!TryConvertMoveAxisToGridDir(Axis, direction))
     {
         UE_LOG(
             LogRldInput,
             Warning,
-            TEXT("HandleLeftStickMoveTriggered: 方向変換に失敗しました 生入力=(%f,%f)"),
+            TEXT("HandleLeftStickMoveTriggered: Actor=%s 方向変換に失敗しました 生入力=(%f,%f)"),
+            *GetNameSafe(this),
             Axis.X,
             Axis.Y
         );
+
         return;
     }
 
     bLeftStickMoveConsumed = true;
 
     ProcessResolvedMoveDirection(
-        Direction,
+        direction,
         TEXT("ゲームパッドLスティック"),
         Axis
     );
@@ -1156,77 +1735,77 @@ ARldPlayerCharacter* ARldPlayerController::GetRldPlayerCharacter() const
 /** 現在の移動入力元をデバッグ文字列で取得する */
 FString ARldPlayerController::BuildMoveInputSourceDebugText() const
 {
-    TArray<FString> Sources;
+    TArray<FString> sources;
 
     // ----- キーボード -----
 
     if (IsInputKeyDown(EKeys::W))
     {
-        Sources.Add(TEXT("キーボード(W)"));
+        sources.Add(TEXT("キーボード(W)"));
     }
 
     if (IsInputKeyDown(EKeys::S))
     {
-        Sources.Add(TEXT("キーボード(S)"));
+        sources.Add(TEXT("キーボード(S)"));
     }
 
     if (IsInputKeyDown(EKeys::A))
     {
-        Sources.Add(TEXT("キーボード(A)"));
+        sources.Add(TEXT("キーボード(A)"));
     }
 
     if (IsInputKeyDown(EKeys::D))
     {
-        Sources.Add(TEXT("キーボード(D)"));
+        sources.Add(TEXT("キーボード(D)"));
     }
 
     // ----- ゲームパッド十字キー -----
 
     if (IsInputKeyDown(EKeys::Gamepad_DPad_Up))
     {
-        Sources.Add(TEXT("ゲームパッド十字キー(↑)"));
+        sources.Add(TEXT("ゲームパッド十字キー(↑)"));
     }
 
     if (IsInputKeyDown(EKeys::Gamepad_DPad_Down))
     {
-        Sources.Add(TEXT("ゲームパッド十字キー(↓)"));
+        sources.Add(TEXT("ゲームパッド十字キー(↓)"));
     }
 
     if (IsInputKeyDown(EKeys::Gamepad_DPad_Left))
     {
-        Sources.Add(TEXT("ゲームパッド十字キー(←)"));
+        sources.Add(TEXT("ゲームパッド十字キー(←)"));
     }
 
     if (IsInputKeyDown(EKeys::Gamepad_DPad_Right))
     {
-        Sources.Add(TEXT("ゲームパッド十字キー(→)"));
+        sources.Add(TEXT("ゲームパッド十字キー(→)"));
     }
 
     // ----- ゲームパッドLスティック -----
 
-    const float LeftStickX = GetInputAnalogKeyState(EKeys::Gamepad_LeftX);
-    const float LeftStickY = GetInputAnalogKeyState(EKeys::Gamepad_LeftY);
+    const float leftStickX = GetInputAnalogKeyState(EKeys::Gamepad_LeftX);
+    const float leftStickY = GetInputAnalogKeyState(EKeys::Gamepad_LeftY);
 
     const bool bHasLeftStickInput =
-        !FMath::IsNearlyZero(LeftStickX, KINDA_SMALL_NUMBER) ||
-        !FMath::IsNearlyZero(LeftStickY, KINDA_SMALL_NUMBER);
+        !FMath::IsNearlyZero(leftStickX, KINDA_SMALL_NUMBER) ||
+        !FMath::IsNearlyZero(leftStickY, KINDA_SMALL_NUMBER);
 
     if (bHasLeftStickInput)
     {
-        Sources.Add(FString::Printf(
+        sources.Add(FString::Printf(
             TEXT("ゲームパッドLスティック(X=%0.3f Y=%0.3f)"),
-            LeftStickX,
-            LeftStickY
+            leftStickX,
+            leftStickY
         ));
     }
 
     // 入力元未検出時はUnknown
-    if (Sources.Num() == 0)
+    if (sources.Num() == 0)
     {
         return TEXT("Unknown");
     }
 
-    return FString::Join(Sources, TEXT(" / "));
+    return FString::Join(sources, TEXT(" / "));
 }
 
 // ----- 移動リピート制御 -----
@@ -1238,10 +1817,10 @@ void ARldPlayerController::StartMoveRepeat(
     const FVector2D& Axis
 )
 {
-    UWorld* World = GetWorld();
+    UWorld* world = GetWorld();
 
     // World未取得時は開始しない
-    if (!World)
+    if (!world)
     {
         return;
     }
@@ -1252,11 +1831,11 @@ void ARldPlayerController::StartMoveRepeat(
     bMoveRepeatActive = true;
 
     // 既存の移動リピートTimerを停止
-    World->GetTimerManager().ClearTimer(MoveRepeatStartTimerHandle);
-    World->GetTimerManager().ClearTimer(MoveRepeatTickTimerHandle);
+    world->GetTimerManager().ClearTimer(MoveRepeatStartTimerHandle);
+    world->GetTimerManager().ClearTimer(MoveRepeatTickTimerHandle);
 
     // 初回遅延Timerを開始
-    World->GetTimerManager().SetTimer(
+    world->GetTimerManager().SetTimer(
         MoveRepeatStartTimerHandle,
         this,
         &ARldPlayerController::BeginMoveRepeat,
@@ -1268,13 +1847,13 @@ void ARldPlayerController::StartMoveRepeat(
 /** 押しっぱなし移動のリピートを停止する */
 void ARldPlayerController::StopMoveRepeat()
 {
-    UWorld* World = GetWorld();
+    UWorld* world = GetWorld();
 
     // World取得時は移動リピートTimerを停止
-    if (World)
+    if (world)
     {
-        World->GetTimerManager().ClearTimer(MoveRepeatStartTimerHandle);
-        World->GetTimerManager().ClearTimer(MoveRepeatTickTimerHandle);
+        world->GetTimerManager().ClearTimer(MoveRepeatStartTimerHandle);
+        world->GetTimerManager().ClearTimer(MoveRepeatTickTimerHandle);
     }
 
     bMoveRepeatActive = false;
@@ -1286,10 +1865,10 @@ void ARldPlayerController::StopMoveRepeat()
 /** 押しっぱなし移動の初回遅延処理を行う */
 void ARldPlayerController::BeginMoveRepeat()
 {
-    UWorld* World = GetWorld();
+    UWorld* world = GetWorld();
 
     // World未取得時は処理しない
-    if (!World)
+    if (!world)
     {
         return;
     }
@@ -1304,7 +1883,7 @@ void ARldPlayerController::BeginMoveRepeat()
     TickMoveRepeat();
 
     // 継続リピートTimerを開始
-    World->GetTimerManager().SetTimer(
+    world->GetTimerManager().SetTimer(
         MoveRepeatTickTimerHandle,
         this,
         &ARldPlayerController::TickMoveRepeat,
@@ -1325,108 +1904,130 @@ void ARldPlayerController::TickMoveRepeat()
 
     UE_LOG(
         LogRldInput,
-        Log,
-        TEXT("TickMoveRepeat: 入力元=%s リピート方向=(%d,%d)"),
+        Verbose,
+        TEXT("TickMoveRepeat: Actor=%s 押しっぱなし入力 入力元=%s リピート方向=(%d,%d) 足踏み入力=%s"),
+        *GetNameSafe(this),
         *RepeatingMoveInputSourceText,
         RepeatingMoveDirection.X,
-        RepeatingMoveDirection.Y
+        RepeatingMoveDirection.Y,
+        bStepInPlaceModifierPressed ? TEXT("有効") : TEXT("無効")
     );
 
-    ARldPlayerCharacter* PlayerCharacter = GetRldPlayerCharacter();
+    ARldPlayerCharacter* playerCharacter = GetRldPlayerCharacter();
 
     // プレイヤーキャラクター未取得時は処理しない
-    if (!PlayerCharacter)
+    if (!playerCharacter)
     {
-        UE_LOG(LogRldInput, Warning, TEXT("TickMoveRepeat: PlayerCharacterがnull"));
+        UE_LOG(
+            LogRldInput,
+            Warning,
+            TEXT("TickMoveRepeat: Actor=%s PlayerCharacterがnullのためリピートを停止します"),
+            *GetNameSafe(this)
+        );
+
         StopMoveRepeat();
         return;
     }
 
     // 移動入力受付不可時は今回の処理のみしない
-    if (!PlayerCharacter->CanAcceptMoveInput())
+    if (!playerCharacter->CanAcceptMoveInput())
     {
-        UE_LOG(LogRldInput, Verbose, TEXT("TickMoveRepeat: 移動入力を受け付けないため今回の処理をしない"));
+        UE_LOG(
+            LogRldInput,
+            Verbose,
+            TEXT("TickMoveRepeat: Actor=%s 移動入力を受け付けないため今回の処理をしません"),
+            *GetNameSafe(playerCharacter)
+        );
+
         return;
     }
 
-    PlayerCharacter->RequestMoveDirection(RepeatingMoveDirection);
+    // 足踏み入力中は押しっぱなし移動を足踏みの連続実行として処理する
+    if (bStepInPlaceModifierPressed)
+    {
+        playerCharacter->RequestStepInPlaceAction(RepeatingMoveDirection);
+        return;
+    }
+
+    playerCharacter->RequestMoveDirection(RepeatingMoveDirection);
 }
 
 /** 押しっぱなし移動を継続すべきか判定する */
 bool ARldPlayerController::ShouldContinueMoveRepeat() const
 {
+    // 移動リピートが無効な場合は継続しない
     if (!bMoveRepeatActive)
     {
         return false;
     }
 
-    FVector2D CurrentAxis = FVector2D::ZeroVector;
+    FVector2D currentAxis = FVector2D::ZeroVector;
 
     // ----- キーボード -----
 
     if (IsInputKeyDown(EKeys::W))
     {
-        CurrentAxis.Y += 1.0f;
+        currentAxis.Y += 1.0f;
     }
 
     if (IsInputKeyDown(EKeys::S))
     {
-        CurrentAxis.Y -= 1.0f;
+        currentAxis.Y -= 1.0f;
     }
 
     if (IsInputKeyDown(EKeys::D))
     {
-        CurrentAxis.X += 1.0f;
+        currentAxis.X += 1.0f;
     }
 
     if (IsInputKeyDown(EKeys::A))
     {
-        CurrentAxis.X -= 1.0f;
+        currentAxis.X -= 1.0f;
     }
 
     // ----- ゲームパッド十字キー -----
 
     if (IsInputKeyDown(EKeys::Gamepad_DPad_Up))
     {
-        CurrentAxis.Y += 1.0f;
+        currentAxis.Y += 1.0f;
     }
 
     if (IsInputKeyDown(EKeys::Gamepad_DPad_Down))
     {
-        CurrentAxis.Y -= 1.0f;
+        currentAxis.Y -= 1.0f;
     }
 
     if (IsInputKeyDown(EKeys::Gamepad_DPad_Right))
     {
-        CurrentAxis.X += 1.0f;
+        currentAxis.X += 1.0f;
     }
 
     if (IsInputKeyDown(EKeys::Gamepad_DPad_Left))
     {
-        CurrentAxis.X -= 1.0f;
+        currentAxis.X -= 1.0f;
     }
 
     // ----- ゲームパッドLスティック -----
 
-    const float LeftStickX = GetInputAnalogKeyState(EKeys::Gamepad_LeftX);
-    const float LeftStickY = GetInputAnalogKeyState(EKeys::Gamepad_LeftY);
+    const float leftStickX = GetInputAnalogKeyState(EKeys::Gamepad_LeftX);
+    const float leftStickY = GetInputAnalogKeyState(EKeys::Gamepad_LeftY);
 
     // アナログ入力がある場合は左スティック入力を優先
-    if (!FMath::IsNearlyZero(LeftStickX, KINDA_SMALL_NUMBER) ||
-        !FMath::IsNearlyZero(LeftStickY, KINDA_SMALL_NUMBER))
+    if (!FMath::IsNearlyZero(leftStickX, KINDA_SMALL_NUMBER) ||
+        !FMath::IsNearlyZero(leftStickY, KINDA_SMALL_NUMBER))
     {
-        CurrentAxis = FVector2D(LeftStickX, LeftStickY);
+        currentAxis = FVector2D(leftStickX, leftStickY);
     }
 
-    FIntPoint CurrentDirection;
+    FIntPoint currentDirection;
 
     // 入力から方向確定できない場合は継続しない
-    if (!TryConvertMoveAxisToGridDir(CurrentAxis, CurrentDirection))
+    if (!TryConvertMoveAxisToGridDir(currentAxis, currentDirection))
     {
         return false;
     }
 
-    return CurrentDirection == RepeatingMoveDirection;
+    return currentDirection == RepeatingMoveDirection;
 }
 
 // ----- デバッグUI表示 -----
@@ -1447,14 +2048,15 @@ void ARldPlayerController::HandleKeyboardDebugCommandCharacter(int32 commandInde
         return;
     }
 
-    UWorld* World = GetWorld();
+    UWorld* world = GetWorld();
 
-    if (!World)
+    // World未取得時は処理しない
+    if (!world)
     {
         return;
     }
 
-    lastHiddenDebugInputTime = World->GetTimeSeconds();
+    lastHiddenDebugInputTime = world->GetTimeSeconds();
 
     // 開始入力が必要回数に満たない場合は文字入力を受け付けない
     if (debugCommandPrefixCount < debugCommandPrefixRequiredCount)
@@ -1508,14 +2110,15 @@ void ARldPlayerController::HandleGamepadDebugCommandInput(bool bIsGamepad1Input)
         return;
     }
 
-    UWorld* World = GetWorld();
+    UWorld* world = GetWorld();
 
-    if (!World)
+    // World未取得時は処理しない
+    if (!world)
     {
         return;
     }
 
-    lastHiddenDebugInputTime = World->GetTimeSeconds();
+    lastHiddenDebugInputTime = world->GetTimeSeconds();
 
     // 開始入力が必要回数に満たない場合はゲームパッド用デバッグ入力を受け付けない
     if (debugCommandPrefixCount < debugCommandPrefixRequiredCount)
@@ -1580,19 +2183,21 @@ bool ARldPlayerController::IsHiddenDebugCommandInputActive() const
 /** デバッグコマンド入力がタイムアウトしているか判定する */
 bool ARldPlayerController::IsDebugCommandTimedOut() const
 {
+    // 開始入力前はタイムアウト扱いにしない
     if (debugCommandPrefixCount <= 0)
     {
         return false;
     }
 
-    UWorld* World = GetWorld();
+    UWorld* world = GetWorld();
 
-    if (!World)
+    // World未取得時はタイムアウト扱いにしない
+    if (!world)
     {
         return false;
     }
 
-    return (World->GetTimeSeconds() - lastHiddenDebugInputTime) > hiddenDebugCommandTimeout;
+    return (world->GetTimeSeconds() - lastHiddenDebugInputTime) > hiddenDebugCommandTimeout;
 }
 
 /** デバッグオプションWidgetを表示する */
@@ -1611,8 +2216,10 @@ void ARldPlayerController::OpenDebugOptionsWidget()
         UE_LOG(
             LogRldInput,
             Warning,
-            TEXT("OpenDebugOptionsWidget: DebugOptionsWidgetClass未設定のため表示できません")
+            TEXT("OpenDebugOptionsWidget: Actor=%s DebugOptionsWidgetClass未設定のため表示できません"),
+            *GetNameSafe(this)
         );
+
         return;
     }
 
@@ -1627,20 +2234,28 @@ void ARldPlayerController::OpenDebugOptionsWidget()
         UE_LOG(
             LogRldInput,
             Warning,
-            TEXT("OpenDebugOptionsWidget: DebugOptionsWidget生成に失敗しました")
+            TEXT("OpenDebugOptionsWidget: Actor=%s DebugOptionsWidget生成に失敗しました"),
+            *GetNameSafe(this)
         );
+
         return;
     }
 
     ActiveDebugOptionsWidget->AddToViewport(100);
     SetCommonInputMode(ECmnInputMode::Menu);
 
-    UE_LOG(LogRldInput, Log, TEXT("OpenDebugOptionsWidget: デバッグオプションを表示しました"));
+    UE_LOG(
+        LogRldInput,
+        Log,
+        TEXT("OpenDebugOptionsWidget: Actor=%s デバッグオプションを表示しました"),
+        *GetNameSafe(this)
+    );
 }
 
 /** 表示中のデバッグオプションWidgetを取得する */
 URldDebugOptionsWidget* ARldPlayerController::GetActiveDebugOptionsWidget() const
 {
+    // デバッグオプションWidget未生成または非表示の場合はnullptrを返す
     if (!ActiveDebugOptionsWidget || !ActiveDebugOptionsWidget->IsInViewport())
     {
         return nullptr;
@@ -1659,7 +2274,12 @@ void ARldPlayerController::LoadAndApplyInputConfig()
     // 入力設定DataAsset未指定時はルーターへnull適用
     if (InputConfigAsset.IsNull())
     {
-        UE_LOG(LogRldInput, Error, TEXT("LoadAndApplyInputConfig: InputConfigAssetがnull"));
+        UE_LOG(
+            LogRldInput,
+            Error,
+            TEXT("LoadAndApplyInputConfig: Actor=%s InputConfigAssetがnullのため入力設定をロードできません"),
+            *GetNameSafe(this)
+        );
 
         if (InputRouter)
         {
@@ -1674,7 +2294,8 @@ void ARldPlayerController::LoadAndApplyInputConfig()
     UE_LOG(
         LogRldInput,
         Log,
-        TEXT("LoadAndApplyInputConfig: 入力設定をロードしました 名前=%s"),
+        TEXT("LoadAndApplyInputConfig: Actor=%s 入力設定ロード完了 名前=%s"),
+        *GetNameSafe(this),
         LoadedInputConfig ? *LoadedInputConfig->GetName() : TEXT("None")
     );
 
@@ -1686,9 +2307,10 @@ void ARldPlayerController::LoadAndApplyInputConfig()
         UE_LOG(
             LogRldInput,
             Log,
-            TEXT("LoadAndApplyInputConfig: 入力設定を適用しました 移動=%s 待機=%s 攻撃=%s インタラクト=%s メニュー=%s 視点=%s ズーム=%s UI方向=%s UI決定=%s UI閉じる=%s UIスクロール=%s DebugPrefix=%s DebugKeyboard=%s DebugGamepad=%s"),
+            TEXT("LoadAndApplyInputConfig: Actor=%s 入力設定適用完了 移動=%s 足踏み=%s 攻撃=%s インタラクト=%s メニュー=%s 視点=%s ズーム=%s UI方向=%s UI決定=%s UI閉じる=%s UIスクロール=%s DebugPrefix=%s DebugKeyboard=%s DebugGamepad=%s"),
+            *GetNameSafe(this),
             InputRouter->IA_Move ? TEXT("あり") : TEXT("なし"),
-            InputRouter->IA_Wait ? TEXT("あり") : TEXT("なし"),
+            InputRouter->IA_StepInPlaceModifier ? TEXT("あり") : TEXT("なし"),
             InputRouter->IA_Attack ? TEXT("あり") : TEXT("なし"),
             InputRouter->IA_Interact ? TEXT("あり") : TEXT("なし"),
             InputRouter->IA_Menu ? TEXT("あり") : TEXT("なし"),
@@ -1726,13 +2348,13 @@ void ARldPlayerController::EnsureEnhancedInputComponent()
         InputComponent = nullptr;
     }
 
-    UEnhancedInputComponent* NewInputComponent = NewObject<UEnhancedInputComponent>(
+    UEnhancedInputComponent* newInputComponent = NewObject<UEnhancedInputComponent>(
         this,
         UEnhancedInputComponent::StaticClass(),
         NAME_None,
         RF_Transient
     );
 
-    PushInputComponent(NewInputComponent);
-    InputComponent = NewInputComponent;
+    PushInputComponent(newInputComponent);
+    InputComponent = newInputComponent;
 }

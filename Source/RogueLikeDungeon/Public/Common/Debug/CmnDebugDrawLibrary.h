@@ -6,7 +6,7 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "Common/Debug/CmnDebugDrawTypes.h"
 #include "Common/Grid/CmnGridDefinition.h"
-#include "Common/ProcGen/CmnGridRoom.h"
+#include "Common/ProcGen/CmnGridSection.h"
 #include "CmnDebugDrawLibrary.generated.h"
 
 /**
@@ -53,18 +53,18 @@ public:
     );
 
     /**
-     * 部屋矩形の外枠をデバッグ描画する
+     * セクション矩形の外枠をデバッグ描画する
      *
      * @param world 描画先World
      * @param gridDefinition グリッド定義
-     * @param room 描画対象部屋
+     * @param section 描画対象セクション
      * @param drawStyle 描画設定
      */
     UFUNCTION(BlueprintCallable, Category = "Cmn|Debug")
-    static void DrawGridRoomBounds(
+    static void DrawGridSectionBounds(
         UWorld* world,
         const FCmnGridDefinition& gridDefinition,
-        const FCmnGridRoom& room,
+        const FCmnGridSection& section,
         const FCmnDebugDrawStyle& drawStyle
     );
 

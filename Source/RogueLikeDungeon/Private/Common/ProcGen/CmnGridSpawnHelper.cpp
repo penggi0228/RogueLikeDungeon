@@ -4,9 +4,7 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogCmnGridSpawnHelper, Log, All);
 
-/**
- * 除外ルールを適用してスポーン候補マス一覧を構築する
- */
+/** 除外ルールを適用してスポーン候補マス一覧を構築する */
 void FCmnGridSpawnHelper::BuildCandidateCells(
     const TArray<FIntPoint>& sourceCells,
     const TArray<FCmnGridSpawnExclusionRule>& exclusionRules,
@@ -40,7 +38,7 @@ void FCmnGridSpawnHelper::BuildCandidateCells(
 
     UE_LOG(
         LogCmnGridSpawnHelper,
-        Log,
+        Verbose,
         TEXT("BuildCandidateCells: 元マス数=%d ルール数=%d 候補数=%d"),
         sourceCells.Num(),
         exclusionRules.Num(),
@@ -48,9 +46,7 @@ void FCmnGridSpawnHelper::BuildCandidateCells(
     );
 }
 
-/**
- * 指定マスが除外ルールを満たすか判定する
- */
+/** 指定マスが除外ルールを満たすか判定する */
 bool FCmnGridSpawnHelper::IsCellAllowedByRules(
     const FIntPoint& cell,
     const TArray<FCmnGridSpawnExclusionRule>& exclusionRules
@@ -69,9 +65,7 @@ bool FCmnGridSpawnHelper::IsCellAllowedByRules(
     return true;
 }
 
-/**
- * 2座標間のマンハッタン距離を取得する
- */
+/** 2座標間のマンハッタン距離を取得する */
 int32 FCmnGridSpawnHelper::GetManhattanDistance(const FIntPoint& a, const FIntPoint& b)
 {
     return FMath::Abs(a.X - b.X) + FMath::Abs(a.Y - b.Y);

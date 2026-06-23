@@ -61,7 +61,7 @@ public:
 
     // ----- デバッグ描画 -----
 
-    /** 現在フロアのデバッグ描画を行う */
+    /** 現在のフロアのデバッグ描画を行う */
     UFUNCTION(BlueprintCallable, Category = "Rld|Floor|Debug")
     void DrawDebugFloorState() const;
 
@@ -76,14 +76,14 @@ public:
         return currentFloorIndex;
     }
 
-    /** 現在フロアの定義を取得する */
+    /** 現在のフロアの定義を取得する */
     UFUNCTION(BlueprintPure, Category = "Rld|Floor")
     FRldFloorDefinition GetCurrentFloorDefinition() const
     {
         return currentFloorDefinition;
     }
 
-    /** 現在フロアの生成結果を取得する */
+    /** 現在のフロアの生成結果を取得する */
     UFUNCTION(BlueprintPure, Category = "Rld|Floor")
     FCmnGridLayoutBuildResult GetCurrentFloorLayout() const
     {
@@ -151,7 +151,7 @@ private:
     // ----- デバッグ描画 -----
 
     /** フロアデバッグ描画の凡例をログ出力する */
-    void LogDebugDrawLegend();
+    void LogDebugDrawInfo();
 
     /** フロアデバッグ描画を更新する */
     void UpdateContinuousDebugDraw(float deltaSeconds);
@@ -160,7 +160,7 @@ private:
     bool ShouldDrawContinuousDebug() const;
 
     /**
-     * 現在フロアのデバッグ描画を行う
+     * 現在のフロアのデバッグ描画を行う
      *
      * @param bOutputLog 描画ログを出力するか
      */
@@ -202,11 +202,11 @@ private:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Rld|Floor", meta = (AllowPrivateAccess = "true", ClampMin = "1"))
     int32 currentFloorIndex = 1;
 
-    // 現在フロアの定義
+    // 現在のフロアの定義
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Rld|Floor", meta = (AllowPrivateAccess = "true"))
     FRldFloorDefinition currentFloorDefinition;
 
-    // 現在フロアの生成結果
+    // 現在のフロアの生成結果
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Rld|Floor", meta = (AllowPrivateAccess = "true"))
     FCmnGridLayoutBuildResult currentFloorLayout;
 
@@ -232,9 +232,9 @@ private:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rld|Floor|Debug", meta = (AllowPrivateAccess = "true", ClampMin = "0.01"))
     float continuousDebugDrawInterval = 0.10f;
 
-    // 部屋外枠を描画するか
+    // セクション外枠を描画するか
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rld|Floor|Debug", meta = (AllowPrivateAccess = "true"))
-    bool bDrawRoomBounds = true;
+    bool bDrawSectionBounds = true;
 
     // 開始位置を描画するか
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rld|Floor|Debug", meta = (AllowPrivateAccess = "true"))
@@ -244,9 +244,9 @@ private:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rld|Floor|Debug", meta = (AllowPrivateAccess = "true"))
     bool bDrawStairsHighlightCell = true;
 
-    // 部屋外枠描画設定
+    // セクション外枠描画設定
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rld|Floor|Debug", meta = (AllowPrivateAccess = "true"))
-    FCmnDebugDrawStyle roomBoundsDebugStyle;
+    FCmnDebugDrawStyle sectionBoundsDebugStyle;
 
     // 開始位置描画設定
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rld|Floor|Debug", meta = (AllowPrivateAccess = "true"))
@@ -260,5 +260,5 @@ private:
     float continuousDebugDrawElapsed = 0.0f;
 
     // デバッグ描画凡例を出力済みか
-    bool bDebugLegendLogged = false;
+    bool bDebugInfoLogged = false;
 };

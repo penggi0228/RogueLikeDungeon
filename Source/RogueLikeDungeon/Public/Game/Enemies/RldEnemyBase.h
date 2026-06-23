@@ -5,9 +5,14 @@
 #include "CoreMinimal.h"
 #include "Common/Grid/CmnGridActorBase.h"
 #include "Common/Turn/CmnTurnActorInterface.h"
+#include "Game/Status/RldStatusTypes.h"
 #include "RldEnemyBase.generated.h"
 
+class UDataTable;
 class UCmnHealthComponent;
+class UCmnManaComponent;
+class URldStatusEffectComponent;
+
 class ARldGridManager;
 class ARldPlayerCharacter;
 
@@ -47,14 +52,47 @@ public:
     // ----- Getter -----
 
     /**
-     * HP管理Componentを取得する
+     * HP管理コンポーネントを取得する
      *
-     * @return HP管理Component
+     * @return HP管理コンポーネント
      */
     UFUNCTION(BlueprintPure, Category = "Rld|Enemy")
     UCmnHealthComponent* GetHealthComponent() const
     {
         return healthComponent;
+    }
+
+    /**
+     * MP管理コンポーネントを取得する
+     *
+     * @return MP管理コンポーネント
+     */
+    UFUNCTION(BlueprintPure, Category = "Rld|Enemy")
+    UCmnManaComponent* GetManaComponent() const
+    {
+        return manaComponent;
+    }
+
+    /**
+     * 状態異常管理コンポーネントを取得する
+     *
+     * @return 状態異常管理コンポーネント
+     */
+    UFUNCTION(BlueprintPure, Category = "Rld|Enemy")
+    URldStatusEffectComponent* GetStatusEffectComponent() const
+    {
+        return statusEffectComponent;
+    }
+
+    /**
+ * 現在の戦闘ステータスを取得する
+ *
+ * @return 現在の戦闘ステータス
+ */
+    UFUNCTION(BlueprintPure, Category = "Rld|Enemy|Status")
+    const FRldBattleStatus& GetCurrentBattleStatus() const
+    {
+        return currentBattleStatus;
     }
 
     /**
@@ -96,6 +134,16 @@ private:
 
 private:
 
+    // ----- ステータス -----
+
+    /** エネミーステータス定義を読み込む */
+    void LoadEnemyStatusDefinition();
+
+    /** 戦闘ステータスをコンポーネントへ反映する */
+    void ApplyBattleStatusToComponents();
+
+private:
+
     // ----- 行動処理 -----
 
     /**
@@ -105,6 +153,22 @@ private:
      * @return 移動候補を決定できた場合はtrue
      */
     bool TryBuildNextMoveTarget(FIntPoint& outTargetGridCoord) const;
+
+private:
+
+    // ----- ステータス設定 -----
+
+    // エネミーステータスのDataTable
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rld|Enemy|Status", meta = (AllowPrivateAccess = "true"))
+    TObjectPtr<UDataTable> enemyStatusDataTable = nullptr;
+
+    // エネミーステータスのRowName
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rld|Enemy|Status", meta = (AllowPrivateAccess = "true"))
+    FName enemyStatusRowName = TEXT("Enemy_000");
+
+    // 現在の戦闘ステータス
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Rld|Enemy|Status", meta = (AllowPrivateAccess = "true"))
+    FRldBattleStatus currentBattleStatus;
 
 private:
 
@@ -120,11 +184,19 @@ private:
 
 private:
 
-    // ----- Component -----
+    // ----- コンポーネント -----
 
-    // HP管理Component
+    // HP管理コンポーネント
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Rld|Enemy", meta = (AllowPrivateAccess = "true"))
     TObjectPtr<UCmnHealthComponent> healthComponent = nullptr;
+
+    // MP管理コンポーネント
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Rld|Enemy", meta = (AllowPrivateAccess = "true"))
+    TObjectPtr<UCmnManaComponent> manaComponent = nullptr;
+
+    // 状態異常管理コンポーネント
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Rld|Enemy", meta = (AllowPrivateAccess = "true"))
+    TObjectPtr<URldStatusEffectComponent> statusEffectComponent = nullptr;
 
 private:
 

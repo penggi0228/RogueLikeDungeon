@@ -49,6 +49,7 @@ void UCmnDebugWorldSubsystem::SetCategoryEnabled(FName categoryName, bool bEnabl
             Warning,
             TEXT("SetCategoryEnabled: カテゴリ名がNoneのため更新しません")
         );
+
         return;
     }
 
@@ -64,7 +65,7 @@ void UCmnDebugWorldSubsystem::SetCategoryEnabled(FName categoryName, bool bEnabl
     UE_LOG(
         LogCmnDebugWorldSubsystem,
         Log,
-        TEXT("SetCategoryEnabled: カテゴリ=%s 状態=%s"),
+        TEXT("SetCategoryEnabled: カテゴリ=%s カテゴリ有効状態=%s"),
         *categoryName.ToString(),
         bEnabled ? TEXT("有効") : TEXT("無効")
     );
@@ -128,10 +129,10 @@ void UCmnDebugWorldSubsystem::DrawGridCells(
     );
 }
 
-/** 部屋矩形外枠を描画する */
-void UCmnDebugWorldSubsystem::DrawGridRoomBounds(
+/** セクション矩形外枠を描画する */
+void UCmnDebugWorldSubsystem::DrawGridSectionBounds(
     const FCmnGridDefinition& gridDefinition,
-    const FCmnGridRoom& room,
+    const FCmnGridSection& section,
     const FCmnDebugDrawStyle& drawStyle
 ) const
 {
@@ -140,10 +141,10 @@ void UCmnDebugWorldSubsystem::DrawGridRoomBounds(
         return;
     }
 
-    UCmnDebugDrawLibrary::DrawGridRoomBounds(
+    UCmnDebugDrawLibrary::DrawGridSectionBounds(
         GetWorld(),
         gridDefinition,
-        room,
+        section,
         drawStyle
     );
 }
@@ -163,6 +164,7 @@ bool UCmnDebugWorldSubsystem::CanDrawDebug() const
             Warning,
             TEXT("CanDrawDebug: World未取得のため描画しません")
         );
+
         return false;
     }
 
@@ -181,11 +183,11 @@ void UCmnDebugWorldSubsystem::InitializeDefaultCategories()
 
     UE_LOG(
         LogCmnDebugWorldSubsystem,
-        Log,
-        TEXT("InitializeDefaultCategories: デバッグカテゴリを初期化しました Grid=%d Floor=%d AI=%d Collision=%d"),
-        IsCategoryEnabled(CmnDebugCategories::Grid) ? 1 : 0,
-        IsCategoryEnabled(CmnDebugCategories::Floor) ? 1 : 0,
-        IsCategoryEnabled(CmnDebugCategories::AI) ? 1 : 0,
-        IsCategoryEnabled(CmnDebugCategories::Collision) ? 1 : 0
+        Verbose,
+        TEXT("InitializeDefaultCategories: デバッグカテゴリを初期化しました Grid=%s Floor=%s AI=%s Collision=%s"),
+        IsCategoryEnabled(CmnDebugCategories::Grid) ? TEXT("有効") : TEXT("無効"),
+        IsCategoryEnabled(CmnDebugCategories::Floor) ? TEXT("有効") : TEXT("無効"),
+        IsCategoryEnabled(CmnDebugCategories::AI) ? TEXT("有効") : TEXT("無効"),
+        IsCategoryEnabled(CmnDebugCategories::Collision) ? TEXT("有効") : TEXT("無効")
     );
 }

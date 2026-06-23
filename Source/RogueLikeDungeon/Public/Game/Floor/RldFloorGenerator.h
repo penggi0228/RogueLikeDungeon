@@ -34,27 +34,27 @@ private:
         FCmnGridLayoutBuildResult& outBuildResult
     );
 
-    /** 部屋生成レイアウトを生成する */
+    /** セクション生成レイアウトを生成する */
     bool GenerateProceduralLayout(
         const FRldFloorDefinition& floorDefinition,
         FCmnGridLayoutBuildResult& outBuildResult
     );
 
-    /** 部屋一覧を生成する */
-    void GenerateRooms(
+    /** セクション一覧を生成する */
+    void GenerateSections(
         const FRldFloorDefinition& floorDefinition,
-        TArray<FCmnGridRoom>& outRooms
+        TArray<FCmnGridSection>& outSections
     );
 
-    /** 指定部屋候補が配置可能か判定する */
-    bool CanPlaceRoom(
-        const FCmnGridRoom& candidateRoom,
-        const TArray<FCmnGridRoom>& existingRooms,
+    /** 指定セクション候補が配置可能か判定する */
+    bool CanPlaceSection(
+        const FCmnGridSection& candidateSection,
+        const TArray<FCmnGridSection>& existingSections,
         int32 padding
     ) const;
 
-    /** 部屋同士を通路で接続する */
-    void ConnectRooms(const TArray<FCmnGridRoom>& rooms);
+    /** セクション同士を通路で接続する */
+    void ConnectSections(const TArray<FCmnGridSection>& sections);
 
     /** 固定フロアの特殊マスが有効か判定する */
     bool ValidateFixedSpecialCells(
@@ -64,7 +64,7 @@ private:
 
     /** 生成結果のメタ情報を設定する */
     bool FinalizeBuildResult(
-        const TArray<FCmnGridRoom>& rooms,
+        const TArray<FCmnGridSection>& sections,
         FCmnGridLayoutBuildResult& outBuildResult
     ) const;
 

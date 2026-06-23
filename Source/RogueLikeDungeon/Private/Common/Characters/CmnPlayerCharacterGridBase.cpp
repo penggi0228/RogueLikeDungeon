@@ -10,9 +10,7 @@ ACmnPlayerCharacterGridBase::ACmnPlayerCharacterGridBase()
     PrimaryActorTick.bCanEverTick = false;
 }
 
-/**
- * 初期化時処理
- */
+/** 開始時処理 */
 void ACmnPlayerCharacterGridBase::BeginPlay()
 {
     Super::BeginPlay();
@@ -20,21 +18,21 @@ void ACmnPlayerCharacterGridBase::BeginPlay()
     UE_LOG(
         LogCmnPlayerCharacterGridBase,
         Verbose,
-        TEXT("BeginPlay: 初期グリッド座標は未設定")
+        TEXT("BeginPlay: Actor=%s 初期グリッド座標は未設定"),
+        *GetNameSafe(this)
     );
 }
 
-/**
- * グリッド座標を設定する
- */
+/** グリッド座標を設定する */
 void ACmnPlayerCharacterGridBase::SetCurrentGridCoord(const FIntPoint& newGridCoord)
 {
     currentGridCoord = newGridCoord;
 
     UE_LOG(
         LogCmnPlayerCharacterGridBase,
-        Log,
-        TEXT("SetCurrentGridCoord: グリッド=(%d,%d)"),
+        Verbose,
+        TEXT("SetCurrentGridCoord: Actor=%s 現在の座標=(%d,%d)"),
+        *GetNameSafe(this),
         currentGridCoord.X,
         currentGridCoord.Y
     );

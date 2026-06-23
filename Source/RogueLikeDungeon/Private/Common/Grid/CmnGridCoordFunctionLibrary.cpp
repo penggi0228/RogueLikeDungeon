@@ -4,9 +4,7 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogCmnGridCoordFunctionLibrary, Log, All);
 
-/**
- * グリッド座標をワールド座標へ変換する
- */
+/** グリッド座標をワールド座標へ変換する */
 FVector UCmnGridCoordFunctionLibrary::GridToWorld(
     const FCmnGridDefinition& gridDefinition,
     const FIntPoint& gridCoord
@@ -21,7 +19,7 @@ FVector UCmnGridCoordFunctionLibrary::GridToWorld(
     UE_LOG(
         LogCmnGridCoordFunctionLibrary,
         Verbose,
-        TEXT("GridToWorld: グリッド=(%d,%d)、ワールド=(%f,%f,%f)"),
+        TEXT("GridToWorld: グリッド=(%d,%d) ワールド=(%f,%f,%f)"),
         gridCoord.X,
         gridCoord.Y,
         worldLocation.X,
@@ -32,9 +30,7 @@ FVector UCmnGridCoordFunctionLibrary::GridToWorld(
     return worldLocation;
 }
 
-/**
- * ワールド座標をグリッド座標へ変換する
- */
+/** ワールド座標をグリッド座標へ変換する */
 FIntPoint UCmnGridCoordFunctionLibrary::WorldToGrid(
     const FCmnGridDefinition& gridDefinition,
     const FVector& worldLocation
@@ -51,7 +47,7 @@ FIntPoint UCmnGridCoordFunctionLibrary::WorldToGrid(
     UE_LOG(
         LogCmnGridCoordFunctionLibrary,
         Verbose,
-        TEXT("WorldToGrid: ワールド=(%f,%f,%f)、 グリッド=(%d,%d)"),
+        TEXT("WorldToGrid: ワールド=(%f,%f,%f) グリッド=(%d,%d)"),
         worldLocation.X,
         worldLocation.Y,
         worldLocation.Z,
