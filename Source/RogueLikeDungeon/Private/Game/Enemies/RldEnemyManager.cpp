@@ -212,13 +212,25 @@ void ARldEnemyManager::SpawnEnemiesForProceduralFloor(
         return;
     }
 
-    // エネミークラス未設定時はスポーンしない
-    if (!floorDefinition.proceduralEnemyClass)
+    // 有効な自動生成エネミー候補がいるか確認
+    bool bHasValidEnemySpawnEntry = false;
+
+    for (const FRldProceduralEnemySpawnEntry& spawnEntry : floorDefinition.proceduralEnemySpawnEntries)
+    {
+        if (spawnEntry.enemyClass && spawnEntry.spawnWeight > 0)
+        {
+            bHasValidEnemySpawnEntry = true;
+            break;
+        }
+    }
+
+    if (!bHasValidEnemySpawnEntry)
     {
         UE_LOG(
             LogRldEnemyManager,
             Log,
-            TEXT("SpawnEnemiesForProceduralFloor: 自動生成エネミークラスが未設定のためスポーンしません")
+            TEXT("SpawnEnemiesForProceduralFloor: 有効な自動生成エネミー候補がいないためスポーンしません 候補数=%d"),
+            floorDefinition.proceduralEnemySpawnEntries.Num()
         );
 
         return;
@@ -233,7 +245,7 @@ void ARldEnemyManager::SpawnEnemiesForProceduralFloor(
         UE_LOG(
             LogRldEnemyManager,
             Log,
-            TEXT("SpawnEnemiesForProceduralFloor: スポーン対象がないためスポーンしません スポーン数=%d"),
+            TEXT("SpawnEnemiesForProceduralFloor: スポーン対象がいないためスポーンしません スポーン数=%d"),
             targetSpawnCount
         );
 
@@ -311,9 +323,28 @@ void ARldEnemyManager::SpawnEnemiesForProceduralFloor(
         FActorSpawnParameters spawnParameters;
         spawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
+        // 出現候補から重みに応じてエネミークラスを選択
+        TSubclassOf<ARldEnemyBase> selectedEnemyClass = SelectProceduralEnemyClass(
+            floorDefinition,
+            randomStream
+        );
+
+        if (!selectedEnemyClass)
+        {
+            UE_LOG(
+                LogRldEnemyManager,
+                Warning,
+                TEXT("SpawnEnemiesForProceduralFloor: エネミークラスを選択できないためエネミーを生成しません グリッド座標=(%d,%d)"),
+                spawnGridCoord.X,
+                spawnGridCoord.Y
+            );
+
+            continue;
+        }
+
         // 選択した候補マスへエネミーを生成
         ARldEnemyBase* spawnedEnemy = GetWorld()->SpawnActor<ARldEnemyBase>(
-            floorDefinition.proceduralEnemyClass,
+            selectedEnemyClass,
             spawnWorldLocation,
             FRotator::ZeroRotator,
             spawnParameters
@@ -325,7 +356,8 @@ void ARldEnemyManager::SpawnEnemiesForProceduralFloor(
             UE_LOG(
                 LogRldEnemyManager,
                 Warning,
-                TEXT("SpawnEnemiesForProceduralFloor: エネミー生成に失敗しました グリッド座標=(%d,%d)"),
+                TEXT("SpawnEnemiesForProceduralFloor: エネミー生成に失敗しました エネミークラス=%s グリッド座標=(%d,%d)"),
+                *GetNameSafe(selectedEnemyClass.Get()),
                 spawnGridCoord.X,
                 spawnGridCoord.Y
             );
@@ -340,8 +372,9 @@ void ARldEnemyManager::SpawnEnemiesForProceduralFloor(
         UE_LOG(
             LogRldEnemyManager,
             Verbose,
-            TEXT("SpawnEnemiesForProceduralFloor: エネミー生成完了 Actor=%s グリッド座標=(%d,%d)"),
+            TEXT("SpawnEnemiesForProceduralFloor: エネミー生成完了 Actor=%s エネミークラス=%s グリッド座標=(%d,%d)"),
             *GetNameSafe(spawnedEnemy),
+            *GetNameSafe(selectedEnemyClass.Get()),
             spawnGridCoord.X,
             spawnGridCoord.Y
         );
@@ -414,6 +447,93 @@ void ARldEnemyManager::DestroyAllRuntimeSpawnedEnemies()
         destroyedEnemyCount,
         enemyList.Num()
     );
+}
+
+/** 自動生成フロア用エネミークラスを重みに応じて選択する */
+TSubclassOf<ARldEnemyBase> ARldEnemyManager::SelectProceduralEnemyClass(
+    const FRldFloorDefinition& floorDefinition,
+    FRandomStream& randomStream
+) const
+{
+    int32 totalWeight = 0;
+
+    // 有効な出現候補の重み合計を計算
+    for (const FRldProceduralEnemySpawnEntry& spawnEntry : floorDefinition.proceduralEnemySpawnEntries)
+    {
+        if (!spawnEntry.enemyClass)
+        {
+            continue;
+        }
+
+        if (spawnEntry.spawnWeight <= 0)
+        {
+            continue;
+        }
+
+        totalWeight += spawnEntry.spawnWeight;
+    }
+
+    // 有効な重みがない場合は選択しない
+    if (totalWeight <= 0)
+    {
+        UE_LOG(
+            LogRldEnemyManager,
+            Warning,
+            TEXT("SelectProceduralEnemyClass: 有効な出現重みがないためエネミークラスを選択できません 候補数=%d"),
+            floorDefinition.proceduralEnemySpawnEntries.Num()
+        );
+
+        return nullptr;
+    }
+
+    // 重み合計の範囲内で抽選値を決定
+    const int32 selectedWeight = randomStream.RandRange(1, totalWeight);
+    int32 accumulatedWeight = 0;
+
+    for (int32 entryIndex = 0; entryIndex < floorDefinition.proceduralEnemySpawnEntries.Num(); ++entryIndex)
+    {
+        const FRldProceduralEnemySpawnEntry& spawnEntry = floorDefinition.proceduralEnemySpawnEntries[entryIndex];
+
+        if (!spawnEntry.enemyClass)
+        {
+            continue;
+        }
+
+        if (spawnEntry.spawnWeight <= 0)
+        {
+            continue;
+        }
+
+        // 累積重みが抽選値に達した候補を選択
+        accumulatedWeight += spawnEntry.spawnWeight;
+
+        if (selectedWeight <= accumulatedWeight)
+        {
+            UE_LOG(
+                LogRldEnemyManager,
+                Verbose,
+                TEXT("SelectProceduralEnemyClass: エネミークラス選択完了 Index=%d エネミークラス=%s 出現重み=%d 抽選値=%d 総重み=%d"),
+                entryIndex,
+                *GetNameSafe(spawnEntry.enemyClass.Get()),
+                spawnEntry.spawnWeight,
+                selectedWeight,
+                totalWeight
+            );
+
+            return spawnEntry.enemyClass;
+        }
+    }
+
+    // 通常は到達しない
+    UE_LOG(
+        LogRldEnemyManager,
+        Warning,
+        TEXT("SelectProceduralEnemyClass: 抽選結果に対応するエネミークラスが見つかりません 抽選値=%d 総重み=%d"),
+        selectedWeight,
+        totalWeight
+    );
+
+    return nullptr;
 }
 
 /** 自動生成フロア用スポーン数を解決する */

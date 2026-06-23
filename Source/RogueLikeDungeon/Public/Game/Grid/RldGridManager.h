@@ -107,6 +107,43 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Rld|Grid")
     bool IsWalkable(const FIntPoint& gridCoord) const;
 
+    /**
+     * 移動ルールに応じて指定グリッド座標へ進入可能か判定する
+     *
+     * @param gridCoord 判定対象グリッド座標
+     * @param bCanPassThroughWalls 壁マスを通過できるか
+     * @return 進入可能ならtrue
+     */
+    UFUNCTION(BlueprintCallable, Category = "Rld|Grid")
+    bool CanEnterCell(const FIntPoint& gridCoord, bool bCanPassThroughWalls) const;
+
+    /**
+     * 斜め移動や1マス近接攻撃で角の通過可否を判定する
+     * 中距離攻撃、遠距離攻撃、範囲攻撃の到達判定には使用しない
+     *
+     * @param fromCoord 起点座標
+     * @param direction 移動または攻撃方向
+     * @return 角を通過可能な場合はtrue
+     */
+    UFUNCTION(BlueprintPure, Category = "Rld|Grid")
+    bool CanPassDiagonalCorner(const FIntPoint& fromCoord, const FIntPoint& direction) const;
+
+    /**
+     * 移動ルールに応じて斜め移動や1マス近接攻撃で角の通過可否を判定する
+     * 中距離攻撃、遠距離攻撃、範囲攻撃の到達判定には使用しない
+     *
+     * @param fromCoord 起点座標
+     * @param direction 移動または攻撃方向
+     * @param bCanPassThroughWalls 壁マスを通過可能か
+     * @return 角を通過可能な場合はtrue
+     */
+    UFUNCTION(BlueprintPure, Category = "Rld|Grid")
+    bool CanPassDiagonalCornerWithWallPass(
+        const FIntPoint& fromCoord,
+        const FIntPoint& direction,
+        bool bCanPassThroughWalls
+    ) const;
+
 public:
 
     // ----- 占有情報操作 -----
@@ -131,6 +168,21 @@ public:
     bool RegisterOccupant(const FIntPoint& gridCoord, AActor* occupantActor);
 
     /**
+     * 移動ルールに応じてグリッド座標へ占有Actorを登録する
+     *
+     * @param gridCoord 登録先グリッド座標
+     * @param occupantActor 登録するActor
+     * @param bCanPassThroughWalls 壁マスへ登録可能か
+     * @return 登録成功ならtrue
+     */
+    UFUNCTION(BlueprintCallable, Category = "Rld|Grid")
+    bool RegisterOccupantWithWallPass(
+        const FIntPoint& gridCoord,
+        AActor* occupantActor,
+        bool bCanPassThroughWalls
+    );
+
+    /**
      * グリッド座標から占有Actorを解除する
      *
      * @param gridCoord 解除対象グリッド座標
@@ -150,6 +202,23 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "Rld|Grid")
     bool MoveOccupant(const FIntPoint& fromGridCoord, const FIntPoint& toGridCoord, AActor* occupantActor);
+
+    /**
+     * 移動ルールに応じて占有Actorを別グリッド座標へ移動する
+     *
+     * @param fromGridCoord 移動前グリッド座標
+     * @param toGridCoord 移動後グリッド座標
+     * @param occupantActor 移動するActor
+     * @param bCanPassThroughWalls 壁マスへ進入可能か
+     * @return 移動成功ならtrue
+     */
+    UFUNCTION(BlueprintCallable, Category = "Rld|Grid")
+    bool MoveOccupantWithWallPass(
+        const FIntPoint& fromGridCoord,
+        const FIntPoint& toGridCoord,
+        AActor* occupantActor,
+        bool bCanPassThroughWalls
+    );
 
     /** すべての占有情報をクリアする */
     UFUNCTION(BlueprintCallable, Category = "Rld|Grid")
