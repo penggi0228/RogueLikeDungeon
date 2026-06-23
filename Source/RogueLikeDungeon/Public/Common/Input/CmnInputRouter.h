@@ -50,7 +50,7 @@ public:
     bool IsDialogMode() const { return CurrentMode == ECmnInputMode::Dialog; }    // ダイアログモード
     bool IsDisabled() const { return CurrentMode == ECmnInputMode::Disabled; }    // 操作不能モード
 
-    /** 移動入力を4方向へ変換して返す */
+    /** 移動入力を8方向へ変換して返す */
     bool GetMoveDirFromAxis(const FVector2D& Axis, FIntPoint& OutDir) const;
 
     /** UI方向入力を処理する */
@@ -102,9 +102,9 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common|Input|IA|Game")
     TObjectPtr<UInputAction> IA_Move = nullptr;
 
-    // 待機用InputAction
+    // 足踏み用InputAction
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common|Input|IA|Game")
-    TObjectPtr<UInputAction> IA_Wait = nullptr;
+    TObjectPtr<UInputAction> IA_StepInPlaceModifier = nullptr;
 
     // 通常攻撃用InputAction
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common|Input|IA|Game")
@@ -201,8 +201,8 @@ public:
 
 private:
 
-    /** Axis2D入力を4方向へ変換する */
-    bool SnapToCardinal(const FVector2D& Axis, FIntPoint& OutDir) const;
+    /** Axis2D入力を8方向へ変換する */
+    bool SnapToGridDirection(const FVector2D& Axis, FIntPoint& OutDir) const;
 
     /** InputMappingContextを適用する */
     void ApplyMappingContexts(bool bEnableUI);

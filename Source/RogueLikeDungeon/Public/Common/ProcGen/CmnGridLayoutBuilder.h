@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Containers/Queue.h"
-#include "Common/ProcGen/CmnGridRoom.h"
+#include "Common/ProcGen/CmnGridSection.h"
 
 /**
  * グリッドレイアウト生成補助クラス
@@ -38,8 +38,8 @@ public:
     /** 単一マスを床として掘る */
     void CarveCell(const FIntPoint& gridCoord);
 
-    /** 部屋矩形を床として掘る */
-    void CarveRoom(const FCmnGridRoom& room);
+    /** セクション矩形を床として掘る */
+    void CarveSection(const FCmnGridSection& section);
 
     /** 横通路を掘る */
     void CarveHorizontalTunnel(int32 startX, int32 endX, int32 y);
@@ -56,10 +56,10 @@ public:
     TArray<FIntPoint> BuildWallCells() const;
 
     /**
-     * 指定開始座標から最遠床マスを探索する
+     * 指定開始座標から最も遠い床マスを探索する
      *
      * @param startGridCoord 探索開始座標
-     * @param outFarthestGridCoord 最遠床マス
+     * @param outFarthestGridCoord 最も遠い床マス
      * @return 探索成功ならtrue
      */
     bool FindFarthestReachableCell(

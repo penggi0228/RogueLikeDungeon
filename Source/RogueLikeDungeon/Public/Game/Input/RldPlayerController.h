@@ -80,8 +80,11 @@ private:
     /** 移動入力の生値ログを出力する */
     void OnMoveTriggered(const FInputActionValue& Value);
 
-    /** 待機入力を処理する */
-    void OnWaitStarted(const FInputActionValue& Value);
+    /** 足踏み入力開始時の処理を行う */
+    void OnStepInPlaceModifierStarted(const FInputActionValue& Value);
+
+    /** 足踏み入力終了時の処理を行う */
+    void OnStepInPlaceModifierCompleted(const FInputActionValue& Value);
 
     /** 通常攻撃入力を処理する */
     void OnAttackStarted(const FInputActionValue& Value);
@@ -147,7 +150,7 @@ private:
     // ----- ゲーム固有入力変換 -----
 
     /**
-     * 入力軸をカメラ基準のグリッド4方向へ変換する
+     * 入力軸をカメラ基準のグリッド8方向へ変換する
      *
      * @param Axis 入力軸
      * @param OutDirection 変換後のグリッド方向
@@ -168,7 +171,7 @@ private:
     ) const;
 
     /**
-     * ワールド平面方向をグリッド4方向へ変換する
+     * ワールド平面方向をグリッド8方向へ変換する
      *
      * @param WorldDirection ワールド平面方向
      * @param OutGridDirection 変換後のグリッド方向
@@ -215,6 +218,13 @@ private:
 
     // 左スティック入力確定済みフラグ
     bool bLeftStickMoveConsumed = false;
+
+private:
+
+    // ----- 足踏み入力状態 -----
+
+    // 足踏み入力中フラグ
+    bool bStepInPlaceModifierPressed = false;
 
 private:
 

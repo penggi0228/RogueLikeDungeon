@@ -8,7 +8,7 @@
 
 /**
  * 共通HP管理用Component
- * 最大HP・現在HP・ダメージ・回復・生死判定を管理する
+ * 最大HP・現在のHP・ダメージ・回復・生死判定を管理する
  */
 UCLASS(ClassGroup = (Common), meta = (BlueprintSpawnableComponent))
 class ROGUELIKEDUNGEON_API UCmnHealthComponent : public UActorComponent
@@ -17,7 +17,7 @@ class ROGUELIKEDUNGEON_API UCmnHealthComponent : public UActorComponent
 
 public:
 
-    /** HP管理Componentを初期化する */
+    /** HP管理コンポーネントを初期化する */
     UCmnHealthComponent();
 
 protected:
@@ -42,9 +42,9 @@ public:
     }
 
     /**
-     * 現在HPを取得する
+     * 現在のHPを取得する
      *
-     * @return 現在HP
+     * @return 現在のHP
      */
     UFUNCTION(BlueprintPure, Category = "Cmn|Health")
     int32 GetCurrentHP() const
@@ -65,9 +65,9 @@ public:
     void SetMaxHP(int32 newMaxHP);
 
     /**
-     * 現在HPを設定する
+     * 現在のHPを設定する
      *
-     * @param newCurrentHP 更新後の現在HP
+     * @param newCurrentHP 更新後の現在のHP
      */
     UFUNCTION(BlueprintCallable, Category = "Cmn|Health")
     void SetCurrentHP(int32 newCurrentHP);
@@ -80,7 +80,7 @@ public:
      * ダメージを適用する
      *
      * @param damageAmount ダメージ量
-     * @return 適用後の現在HP
+     * @return 適用後の現在のHP
      */
     UFUNCTION(BlueprintCallable, Category = "Cmn|Health")
     int32 ApplyDamage(int32 damageAmount);
@@ -89,15 +89,15 @@ public:
      * 回復を適用する
      *
      * @param healAmount 回復量
-     * @return 適用後の現在HP
+     * @return 適用後の現在のHP
      */
     UFUNCTION(BlueprintCallable, Category = "Cmn|Health")
     int32 Heal(int32 healAmount);
 
     /**
-     * 現在HPを最大HPまで戻す
+     * 現在のHPを最大HPまで戻す
      *
-     * @return 更新後の現在HP
+     * @return 更新後の現在のHP
      */
     UFUNCTION(BlueprintCallable, Category = "Cmn|Health")
     int32 ResetHP();
@@ -130,7 +130,7 @@ private:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cmn|Health", meta = (ClampMin = "1", AllowPrivateAccess = "true"))
     int32 maxHP = 10;
 
-    // 現在HP
+    // 現在のHP
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Cmn|Health", meta = (AllowPrivateAccess = "true"))
     int32 currentHP = 10;
 };

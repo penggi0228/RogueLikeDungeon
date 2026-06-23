@@ -19,7 +19,7 @@ void FCmnGridLayoutBuilder::Initialize(int32 inGridWidth, int32 inGridHeight)
 
     UE_LOG(
         LogCmnGridLayoutBuilder,
-        Log,
+        Verbose,
         TEXT("Initialize: グリッドサイズ=(%d,%d)"),
         gridWidth,
         gridHeight
@@ -59,17 +59,17 @@ void FCmnGridLayoutBuilder::CarveCell(const FIntPoint& gridCoord)
     floorCellSet.Add(gridCoord);
 }
 
-/** 部屋矩形を床として掘る */
-void FCmnGridLayoutBuilder::CarveRoom(const FCmnGridRoom& room)
+/** セクション矩形を床として掘る */
+void FCmnGridLayoutBuilder::CarveSection(const FCmnGridSection& section)
 {
-    if (!room.IsValid())
+    if (!section.IsValid())
     {
         return;
     }
 
-    for (int32 y = room.top; y <= room.GetBottom(); ++y)
+    for (int32 y = section.top; y <= section.GetBottom(); ++y)
     {
-        for (int32 x = room.left; x <= room.GetRight(); ++x)
+        for (int32 x = section.left; x <= section.GetRight(); ++x)
         {
             CarveCell(FIntPoint(x, y));
         }
@@ -166,9 +166,7 @@ TArray<FIntPoint> FCmnGridLayoutBuilder::BuildWallCells() const
     return result;
 }
 
-/**
- * 指定開始座標から最遠床マスを探索する
- */
+/** 指定開始座標から最も遠い床マスを探索する */
 bool FCmnGridLayoutBuilder::FindFarthestReachableCell(
     const FIntPoint& startGridCoord,
     FIntPoint& outFarthestGridCoord

@@ -47,11 +47,57 @@ void ARldEnemyManager::RefreshEnemyList()
 
     UE_LOG(
         LogRldEnemyManager,
-        Log,
-        TEXT("RefreshEnemyList: エネミー数=%d 自動生成エネミー数=%d"),
+        Verbose,
+        TEXT("RefreshEnemyList: エネミー一覧再取得完了 エネミー数=%d 自動生成エネミー数=%d"),
         enemyList.Num(),
         runtimeSpawnedEnemies.Num()
     );
+}
+
+/** 指定エネミーを管理一覧から除外する */
+bool ARldEnemyManager::RemoveEnemyFromLists(ARldEnemyBase* enemy)
+{
+    // 除外対象エネミー未取得時は処理しない
+    if (!enemy)
+    {
+        UE_LOG(
+            LogRldEnemyManager,
+            Warning,
+            TEXT("RemoveEnemyFromLists: Enemyがnullのため除外しません")
+        );
+
+        return false;
+    }
+
+    const int32 removedEnemyListCount = enemyList.RemoveAll(
+        [enemy](const TObjectPtr<ARldEnemyBase>& listedEnemy)
+        {
+            return listedEnemy.Get() == enemy;
+        }
+    );
+
+    const int32 removedRuntimeSpawnedCount = runtimeSpawnedEnemies.RemoveAll(
+        [enemy](const TObjectPtr<ARldEnemyBase>& listedEnemy)
+        {
+            return listedEnemy.Get() == enemy;
+        }
+    );
+
+    const bool bRemoved = (removedEnemyListCount > 0) || (removedRuntimeSpawnedCount > 0);
+
+    UE_LOG(
+        LogRldEnemyManager,
+        Verbose,
+        TEXT("RemoveEnemyFromLists: Actor=%s 管理一覧から除外しました 除外あり=%s エネミー一覧除外数=%d 自動生成一覧除外数=%d エネミー数=%d 自動生成エネミー数=%d"),
+        *GetNameSafe(enemy),
+        bRemoved ? TEXT("true") : TEXT("false"),
+        removedEnemyListCount,
+        removedRuntimeSpawnedCount,
+        enemyList.Num(),
+        runtimeSpawnedEnemies.Num()
+    );
+
+    return bRemoved;
 }
 
 /** 全エネミーのターン行動を実行する */
@@ -67,15 +113,18 @@ void ARldEnemyManager::ExecuteEnemyTurn()
             Log,
             TEXT("ExecuteEnemyTurn: エネミーが存在しないため処理しません")
         );
+
         return;
     }
 
     UE_LOG(
         LogRldEnemyManager,
         Log,
-        TEXT("ExecuteEnemyTurn: エネミーターンを開始します エネミー数=%d"),
+        TEXT("ExecuteEnemyTurn: エネミーターン開始 エネミー数=%d"),
         enemyList.Num()
     );
+
+    int32 executedEnemyCount = 0;
 
     for (ARldEnemyBase* enemy : enemyList)
     {
@@ -86,12 +135,15 @@ void ARldEnemyManager::ExecuteEnemyTurn()
 
         // BlueprintNativeEventのInterface関数は直接呼ぶと落ちるため、Execute_関数経由で呼び出す
         ICmnTurnActorInterface::Execute_ExecuteTurn(enemy);
+        ++executedEnemyCount;
     }
 
     UE_LOG(
         LogRldEnemyManager,
         Log,
-        TEXT("ExecuteEnemyTurn: エネミーターンを終了しました")
+        TEXT("ExecuteEnemyTurn: エネミーターン終了 実行数=%d エネミー数=%d"),
+        executedEnemyCount,
+        enemyList.Num()
     );
 }
 
@@ -108,15 +160,18 @@ void ARldEnemyManager::ResetAllEnemiesToInitialState()
             Log,
             TEXT("ResetAllEnemiesToInitialState: エネミーが存在しないため処理しません")
         );
+
         return;
     }
 
     UE_LOG(
         LogRldEnemyManager,
         Log,
-        TEXT("ResetAllEnemiesToInitialState: 全エネミーの初期化を開始します エネミー数=%d"),
+        TEXT("ResetAllEnemiesToInitialState: 全エネミー初期化開始 エネミー数=%d"),
         enemyList.Num()
     );
+
+    int32 resetEnemyCount = 0;
 
     for (ARldEnemyBase* enemy : enemyList)
     {
@@ -126,12 +181,15 @@ void ARldEnemyManager::ResetAllEnemiesToInitialState()
         }
 
         enemy->ResetToInitialState();
+        ++resetEnemyCount;
     }
 
     UE_LOG(
         LogRldEnemyManager,
         Log,
-        TEXT("ResetAllEnemiesToInitialState: 全エネミーの初期化を終了しました")
+        TEXT("ResetAllEnemiesToInitialState: 全エネミー初期化終了 初期化数=%d エネミー数=%d"),
+        resetEnemyCount,
+        enemyList.Num()
     );
 }
 
@@ -142,10 +200,7 @@ void ARldEnemyManager::SpawnEnemiesForProceduralFloor(
     ARldGridManager* gridManager
 )
 {
-    // 前フロアで自動生成したエネミーを先に破棄
-    DestroyAllRuntimeSpawnedEnemies();
-
-    // GridManager未取得時はスポーンできない
+    // GridManager未取得時はスポーンしない
     if (!gridManager)
     {
         UE_LOG(
@@ -153,6 +208,7 @@ void ARldEnemyManager::SpawnEnemiesForProceduralFloor(
             Warning,
             TEXT("SpawnEnemiesForProceduralFloor: GridManagerがnullのためスポーンしません")
         );
+
         return;
     }
 
@@ -162,8 +218,9 @@ void ARldEnemyManager::SpawnEnemiesForProceduralFloor(
         UE_LOG(
             LogRldEnemyManager,
             Log,
-            TEXT("SpawnEnemiesForProceduralFloor: proceduralEnemyClass未設定のためスポーンしません")
+            TEXT("SpawnEnemiesForProceduralFloor: 自動生成エネミークラスが未設定のためスポーンしません")
         );
+
         return;
     }
 
@@ -176,8 +233,10 @@ void ARldEnemyManager::SpawnEnemiesForProceduralFloor(
         UE_LOG(
             LogRldEnemyManager,
             Log,
-            TEXT("SpawnEnemiesForProceduralFloor: スポーン数が0のためスポーンしません")
+            TEXT("SpawnEnemiesForProceduralFloor: スポーン対象がないためスポーンしません スポーン数=%d"),
+            targetSpawnCount
         );
+
         return;
     }
 
@@ -214,8 +273,10 @@ void ARldEnemyManager::SpawnEnemiesForProceduralFloor(
         UE_LOG(
             LogRldEnemyManager,
             Warning,
-            TEXT("SpawnEnemiesForProceduralFloor: スポーン候補が存在しないためスポーンしません")
+            TEXT("SpawnEnemiesForProceduralFloor: スポーン候補が存在しないためスポーンしません 目標数=%d"),
+            targetSpawnCount
         );
+
         return;
     }
 
@@ -233,6 +294,8 @@ void ARldEnemyManager::SpawnEnemiesForProceduralFloor(
         actualSpawnCount,
         candidateCells.Num()
     );
+
+    int32 spawnedEnemyCount = 0;
 
     for (int32 spawnIndex = 0; spawnIndex < actualSpawnCount; ++spawnIndex)
     {
@@ -266,24 +329,35 @@ void ARldEnemyManager::SpawnEnemiesForProceduralFloor(
                 spawnGridCoord.X,
                 spawnGridCoord.Y
             );
+
             continue;
         }
 
         // フロア遷移時に破棄できるよう自動生成エネミーとして保持
         runtimeSpawnedEnemies.Add(spawnedEnemy);
+        ++spawnedEnemyCount;
 
         UE_LOG(
             LogRldEnemyManager,
-            Log,
-            TEXT("SpawnEnemiesForProceduralFloor: エネミーを生成しました グリッド座標=(%d,%d) 名前=%s"),
+            Verbose,
+            TEXT("SpawnEnemiesForProceduralFloor: エネミー生成完了 Actor=%s グリッド座標=(%d,%d)"),
+            *GetNameSafe(spawnedEnemy),
             spawnGridCoord.X,
-            spawnGridCoord.Y,
-            *spawnedEnemy->GetName()
+            spawnGridCoord.Y
         );
     }
 
     // 生成後のエネミー一覧を再取得
     RefreshEnemyList();
+
+    UE_LOG(
+        LogRldEnemyManager,
+        Log,
+        TEXT("SpawnEnemiesForProceduralFloor: スポーン完了 生成数=%d 自動生成エネミー数=%d エネミー数=%d"),
+        spawnedEnemyCount,
+        runtimeSpawnedEnemies.Num(),
+        enemyList.Num()
+    );
 }
 
 /** 自動生成したエネミーをすべて破棄する */
@@ -293,18 +367,23 @@ void ARldEnemyManager::DestroyAllRuntimeSpawnedEnemies()
     {
         UE_LOG(
             LogRldEnemyManager,
-            Log,
+            Verbose,
             TEXT("DestroyAllRuntimeSpawnedEnemies: 自動生成エネミーが存在しないため処理しません")
         );
+
         return;
     }
+
+    const int32 destroyTargetCount = runtimeSpawnedEnemies.Num();
 
     UE_LOG(
         LogRldEnemyManager,
         Log,
-        TEXT("DestroyAllRuntimeSpawnedEnemies: 自動生成エネミー破棄を開始します 件数=%d"),
-        runtimeSpawnedEnemies.Num()
+        TEXT("DestroyAllRuntimeSpawnedEnemies: 自動生成エネミー破棄開始 対象数=%d"),
+        destroyTargetCount
     );
+
+    int32 destroyedEnemyCount = 0;
 
     for (ARldEnemyBase* enemy : runtimeSpawnedEnemies)
     {
@@ -313,7 +392,15 @@ void ARldEnemyManager::DestroyAllRuntimeSpawnedEnemies()
             continue;
         }
 
+        UE_LOG(
+            LogRldEnemyManager,
+            Verbose,
+            TEXT("DestroyAllRuntimeSpawnedEnemies: 自動生成エネミーを破棄します Actor=%s"),
+            *GetNameSafe(enemy)
+        );
+
         enemy->Destroy();
+        ++destroyedEnemyCount;
     }
 
     runtimeSpawnedEnemies.Empty();
@@ -322,7 +409,10 @@ void ARldEnemyManager::DestroyAllRuntimeSpawnedEnemies()
     UE_LOG(
         LogRldEnemyManager,
         Log,
-        TEXT("DestroyAllRuntimeSpawnedEnemies: 自動生成エネミー破棄を終了しました")
+        TEXT("DestroyAllRuntimeSpawnedEnemies: 自動生成エネミー破棄終了 対象数=%d 破棄数=%d エネミー数=%d"),
+        destroyTargetCount,
+        destroyedEnemyCount,
+        enemyList.Num()
     );
 }
 

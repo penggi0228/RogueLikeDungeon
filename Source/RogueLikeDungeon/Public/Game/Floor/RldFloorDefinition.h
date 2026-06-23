@@ -49,37 +49,37 @@ public:
 
     // ----- 自動生成設定 -----
 
-    // 部屋数最小
+    // セクション数最小
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rld|Floor|ProcGen", meta = (ClampMin = "1"))
-    int32 minRoomCount = 4;
+    int32 minSectionCount = 4;
 
-    // 部屋数最大
+    // セクション数最大
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rld|Floor|ProcGen", meta = (ClampMin = "1"))
-    int32 maxRoomCount = 7;
+    int32 maxSectionCount = 7;
 
-    // 部屋横幅最小
+    // セクション横幅最小
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rld|Floor|ProcGen", meta = (ClampMin = "3"))
-    int32 minRoomWidth = 4;
+    int32 minSectionWidth = 4;
 
-    // 部屋横幅最大
+    // セクション横幅最大
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rld|Floor|ProcGen", meta = (ClampMin = "3"))
-    int32 maxRoomWidth = 8;
+    int32 maxSectionWidth = 8;
 
-    // 部屋縦幅最小
+    // セクション縦幅最小
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rld|Floor|ProcGen", meta = (ClampMin = "3"))
-    int32 minRoomHeight = 4;
+    int32 minSectionHeight = 4;
 
-    // 部屋縦幅最大
+    // セクション縦幅最大
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rld|Floor|ProcGen", meta = (ClampMin = "3"))
-    int32 maxRoomHeight = 8;
+    int32 maxSectionHeight = 8;
 
-    // 部屋配置試行回数
+    // セクション配置試行回数
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rld|Floor|ProcGen", meta = (ClampMin = "1"))
-    int32 roomPlacementAttempts = 80;
+    int32 sectionPlacementAttempts = 80;
 
-    // 部屋同士の余白
+    // セクション同士の余白
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rld|Floor|ProcGen", meta = (ClampMin = "0"))
-    int32 roomSeparationPadding = 1;
+    int32 sectionSeparationPadding = 1;
 
 public:
 

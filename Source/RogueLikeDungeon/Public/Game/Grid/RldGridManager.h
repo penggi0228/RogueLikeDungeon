@@ -14,7 +14,7 @@
  * RogueLikeDungeon用グリッド管理Actor
  *
  * レベル上のグリッド範囲・床マス・壁マス・特殊マス・占有情報を管理する
- * フロア定義と生成結果の反映後は、現在フロアのグリッド状態を保持する
+ * フロア定義と生成結果の反映後は、現在のフロアのグリッド状態を保持する
  */
 UCLASS()
 class ROGUELIKEDUNGEON_API ARldGridManager : public AActor
@@ -187,7 +187,7 @@ public:
 
     /** デバッグ描画凡例をログ出力する */
     UFUNCTION(BlueprintCallable, Category = "Rld|Grid|Debug")
-    void LogDebugDrawLegend();
+    void LogDebugDrawInfo();
 
 public:
 
@@ -363,5 +363,5 @@ private:
     // ----- デバッグ描画Runtime状態 -----
 
     float continuousDebugDrawElapsed = 0.0f;
-    bool bDebugLegendLogged = false;
+    bool bDebugInfoLogged = false;
 };

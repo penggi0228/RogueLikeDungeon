@@ -39,6 +39,15 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Rld|Enemy")
     void RefreshEnemyList();
 
+    /**
+     * 指定エネミーを管理一覧から除外する
+     *
+     * @param enemy 除外対象エネミー
+     * @return いずれかの一覧から除外した場合はtrue
+     */
+    UFUNCTION(BlueprintCallable, Category = "Rld|Enemy")
+    bool RemoveEnemyFromLists(ARldEnemyBase* enemy);
+
     /** 全エネミーのターン行動を実行する */
     UFUNCTION(BlueprintCallable, Category = "Rld|Enemy")
     void ExecuteEnemyTurn();

@@ -20,8 +20,8 @@ enum class ERldActionType : uint8
     /** 移動 */
     Move UMETA(DisplayName = "Move"),
 
-    /** 待機 */
-    Wait UMETA(DisplayName = "Wait"),
+    /** 足踏み */
+    StepInPlace UMETA(DisplayName = "StepInPlace"),
 
     /** 攻撃 */
     Attack UMETA(DisplayName = "Attack"),

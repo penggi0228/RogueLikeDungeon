@@ -19,12 +19,12 @@ ARldFloorManager::ARldFloorManager()
 {
     PrimaryActorTick.bCanEverTick = true;
 
-    roomBoundsDebugStyle.drawColor = FColor::Cyan;
-    roomBoundsDebugStyle.bPersistentLines = false;
-    roomBoundsDebugStyle.duration = 0.15f;
-    roomBoundsDebugStyle.lineThickness = 2.0f;
-    roomBoundsDebugStyle.zOffset = 60.0f;
-    roomBoundsDebugStyle.sizeScale = 0.25f;
+    sectionBoundsDebugStyle.drawColor = FColor::Cyan;
+    sectionBoundsDebugStyle.bPersistentLines = false;
+    sectionBoundsDebugStyle.duration = 0.15f;
+    sectionBoundsDebugStyle.lineThickness = 2.0f;
+    sectionBoundsDebugStyle.zOffset = 60.0f;
+    sectionBoundsDebugStyle.sizeScale = 0.25f;
 
     playerStartDebugStyle.drawColor = FColor::Yellow;
     playerStartDebugStyle.bPersistentLines = false;
@@ -81,9 +81,10 @@ void ARldFloorManager::StartFloorAt(int32 floorIndex)
         UE_LOG(
             LogRldFloorManager,
             Warning,
-            TEXT("StartFloorAt: フロア定義読込に失敗したため開始しません フロア番号=%d"),
+            TEXT("StartFloorAt: フロア定義読み込みに失敗したため開始しません フロア番号=%d"),
             targetFloorIndex
         );
+
         return;
     }
 
@@ -99,6 +100,7 @@ void ARldFloorManager::StartFloorAt(int32 floorIndex)
             TEXT("StartFloorAt: フロア生成に失敗したため開始しません フロア番号=%d"),
             currentFloorIndex
         );
+
         return;
     }
 
@@ -106,12 +108,12 @@ void ARldFloorManager::StartFloorAt(int32 floorIndex)
 
     // 常時デバッグ描画の状態を初期化
     continuousDebugDrawElapsed = 0.0f;
-    bDebugLegendLogged = false;
+    bDebugInfoLogged = false;
 
     UE_LOG(
         LogRldFloorManager,
         Log,
-        TEXT("StartFloorAt: フロア番号=%d グリッドサイズ=(%d,%d) 床数=%d 壁数=%d 開始座標=(%d,%d) 階段座標=(%d,%d)"),
+        TEXT("StartFloorAt: フロア準備完了 フロア番号=%d グリッドサイズ=(%d,%d) 床数=%d 壁数=%d 開始座標=(%d,%d) 階段座標=(%d,%d)"),
         currentFloorIndex,
         currentFloorLayout.gridWidth,
         currentFloorLayout.gridHeight,
@@ -134,14 +136,15 @@ void ARldFloorManager::GoToNextFloor()
     UE_LOG(
         LogRldFloorManager,
         Log,
-        TEXT("GoToNextFloor: 次フロア番号=%d"),
+        TEXT("GoToNextFloor: 次フロアへ進みます 現在のフロア番号=%d 次フロア番号=%d"),
+        currentFloorIndex,
         nextFloorIndex
     );
 
     StartFloorAt(nextFloorIndex);
 }
 
-/** 現在フロアのデバッグ描画を行う */
+/** 現在のフロアのデバッグ描画を行う */
 void ARldFloorManager::DrawDebugFloorState() const
 {
     DrawDebugFloorStateInternal(true);
@@ -167,17 +170,18 @@ void ARldFloorManager::ResolveGridManager()
         UE_LOG(
             LogRldFloorManager,
             Warning,
-            TEXT("ResolveGridManager: ARldGridManagerがレベル上に見つからない")
+            TEXT("ResolveGridManager: ARldGridManagerがレベル上に見つからないためフロア状態を反映できません")
         );
+
         return;
     }
 
     UE_LOG(
         LogRldFloorManager,
-        Log,
-        TEXT("ResolveGridManager: 名前=%s クラス=%s"),
-        *gridManager->GetName(),
-        *gridManager->GetClass()->GetName()
+        Verbose,
+        TEXT("ResolveGridManager: Actor=%s クラス=%s"),
+        *GetNameSafe(gridManager),
+        *GetNameSafe(gridManager->GetClass())
     );
 }
 
@@ -192,17 +196,18 @@ void ARldFloorManager::ResolvePlayerCharacter()
         UE_LOG(
             LogRldFloorManager,
             Warning,
-            TEXT("ResolvePlayerCharacter: ARldPlayerCharacterがレベル上に見つからない")
+            TEXT("ResolvePlayerCharacter: ARldPlayerCharacterがレベル上に見つからないためプレイヤー開始位置を反映できません")
         );
+
         return;
     }
 
     UE_LOG(
         LogRldFloorManager,
-        Log,
-        TEXT("ResolvePlayerCharacter: 名前=%s クラス=%s"),
-        *playerCharacter->GetName(),
-        *playerCharacter->GetClass()->GetName()
+        Verbose,
+        TEXT("ResolvePlayerCharacter: Actor=%s クラス=%s"),
+        *GetNameSafe(playerCharacter),
+        *GetNameSafe(playerCharacter->GetClass())
     );
 }
 
@@ -217,17 +222,18 @@ void ARldFloorManager::ResolveTurnManager()
         UE_LOG(
             LogRldFloorManager,
             Warning,
-            TEXT("ResolveTurnManager: ARldTurnManagerがレベル上に見つからない")
+            TEXT("ResolveTurnManager: ARldTurnManagerがレベル上に見つからないためターン初期化を行いません")
         );
+
         return;
     }
 
     UE_LOG(
         LogRldFloorManager,
-        Log,
-        TEXT("ResolveTurnManager: 名前=%s クラス=%s 現在ターン数=%d"),
-        *turnManager->GetName(),
-        *turnManager->GetClass()->GetName(),
+        Verbose,
+        TEXT("ResolveTurnManager: Actor=%s クラス=%s 現在のターン数=%d"),
+        *GetNameSafe(turnManager),
+        *GetNameSafe(turnManager->GetClass()),
         turnManager->GetCurrentTurnIndex()
     );
 }
@@ -243,17 +249,18 @@ void ARldFloorManager::ResolveEnemyManager()
         UE_LOG(
             LogRldFloorManager,
             Warning,
-            TEXT("ResolveEnemyManager: ARldEnemyManagerがレベル上に見つからない")
+            TEXT("ResolveEnemyManager: ARldEnemyManagerがレベル上に見つからないため敵配置処理を行いません")
         );
+
         return;
     }
 
     UE_LOG(
         LogRldFloorManager,
-        Log,
-        TEXT("ResolveEnemyManager: 名前=%s クラス=%s エネミー数=%d"),
-        *enemyManager->GetName(),
-        *enemyManager->GetClass()->GetName(),
+        Verbose,
+        TEXT("ResolveEnemyManager: Actor=%s クラス=%s エネミー数=%d"),
+        *GetNameSafe(enemyManager),
+        *GetNameSafe(enemyManager->GetClass()),
         enemyManager->GetEnemyCount()
     );
 }
@@ -273,8 +280,10 @@ bool ARldFloorManager::TryLoadFloorDefinition(int32 floorIndex, FRldFloorDefinit
         UE_LOG(
             LogRldFloorManager,
             Warning,
-            TEXT("TryLoadFloorDefinition: floorDefinitionDataTableがnullのため読込に失敗しました")
+            TEXT("TryLoadFloorDefinition: floorDefinitionDataTableがnullのため読み込みに失敗しました フロア番号=%d"),
+            floorIndex
         );
+
         return false;
     }
 
@@ -293,9 +302,11 @@ bool ARldFloorManager::TryLoadFloorDefinition(int32 floorIndex, FRldFloorDefinit
         UE_LOG(
             LogRldFloorManager,
             Warning,
-            TEXT("TryLoadFloorDefinition: 対応行が存在しないため読込に失敗しました RowName=%s"),
+            TEXT("TryLoadFloorDefinition: 対応行が存在しないため読み込みに失敗しました フロア番号=%d RowName=%s"),
+            floorIndex,
             *rowName.ToString()
         );
+
         return false;
     }
 
@@ -304,11 +315,12 @@ bool ARldFloorManager::TryLoadFloorDefinition(int32 floorIndex, FRldFloorDefinit
     UE_LOG(
         LogRldFloorManager,
         Log,
-        TEXT("TryLoadFloorDefinition: 読込しました RowName=%s グリッドサイズ=(%d,%d) 自動生成=%d"),
+        TEXT("TryLoadFloorDefinition: データロード完了 フロア番号=%d RowName=%s グリッドサイズ=(%d,%d) 自動生成レイアウト=%s"),
+        floorIndex,
         *rowName.ToString(),
         outFloorDefinition.gridWidth,
         outFloorDefinition.gridHeight,
-        outFloorDefinition.bUseProceduralLayout ? 1 : 0
+        outFloorDefinition.bUseProceduralLayout ? TEXT("有効") : TEXT("無効")
     );
 
     return true;
@@ -330,6 +342,7 @@ bool ARldFloorManager::TryBuildFloorLayout(FCmnGridLayoutBuildResult& outFloorLa
             TEXT("TryBuildFloorLayout: レイアウト生成に失敗しました フロア番号=%d"),
             currentFloorIndex
         );
+
         return false;
     }
 
@@ -345,8 +358,10 @@ void ARldFloorManager::ApplyFloorState()
         UE_LOG(
             LogRldFloorManager,
             Warning,
-            TEXT("ApplyFloorState: GridManager未取得のため反映できない")
+            TEXT("ApplyFloorState: GridManager未取得のため反映できません フロア番号=%d"),
+            currentFloorIndex
         );
+
         return;
     }
 
@@ -356,8 +371,10 @@ void ARldFloorManager::ApplyFloorState()
         UE_LOG(
             LogRldFloorManager,
             Warning,
-            TEXT("ApplyFloorState: PlayerCharacter未取得のため反映できない")
+            TEXT("ApplyFloorState: PlayerCharacter未取得のため反映できません フロア番号=%d"),
+            currentFloorIndex
         );
+
         return;
     }
 
@@ -387,7 +404,8 @@ void ARldFloorManager::ApplyFloorState()
         UE_LOG(
             LogRldFloorManager,
             Warning,
-            TEXT("ApplyFloorState: EnemyManager未取得のため敵処理を行いません")
+            TEXT("ApplyFloorState: EnemyManager未取得のため敵処理を行いません フロア番号=%d"),
+            currentFloorIndex
         );
     }
 
@@ -401,7 +419,8 @@ void ARldFloorManager::ApplyFloorState()
         UE_LOG(
             LogRldFloorManager,
             Warning,
-            TEXT("ApplyFloorState: プレイヤー開始位置の占有登録に失敗しました 開始座標=(%d,%d)"),
+            TEXT("ApplyFloorState: プレイヤー開始位置の占有登録に失敗しました Actor=%s 開始座標=(%d,%d)"),
+            *GetNameSafe(playerCharacter),
             currentFloorLayout.playerStartGridCoord.X,
             currentFloorLayout.playerStartGridCoord.Y
         );
@@ -410,7 +429,7 @@ void ARldFloorManager::ApplyFloorState()
     UE_LOG(
         LogRldFloorManager,
         Log,
-        TEXT("ApplyFloorState: フロア番号=%d 開始座標=(%d,%d) 階段座標=(%d,%d) 床数=%d 壁数=%d"),
+        TEXT("ApplyFloorState: フロア反映完了 フロア番号=%d 開始座標=(%d,%d) 階段座標=(%d,%d) 床数=%d 壁数=%d"),
         currentFloorIndex,
         currentFloorLayout.playerStartGridCoord.X,
         currentFloorLayout.playerStartGridCoord.Y,
@@ -430,28 +449,32 @@ void ARldFloorManager::ApplyFloorState()
     if (bDrawDebugOnApplyFloorState)
     {
         DrawDebugFloorState();
-        LogDebugDrawLegend();
+        LogDebugDrawInfo();
     }
 }
 
-/** フロアデバッグ描画の凡例をログ出力する */
-void ARldFloorManager::LogDebugDrawLegend()
+/** フロアデバッグ描画情報をログ出力する */
+void ARldFloorManager::LogDebugDrawInfo()
 {
-    if (bDebugLegendLogged)
+    if (bDebugInfoLogged)
     {
         return;
     }
 
-    bDebugLegendLogged = true;
-
-    UE_LOG(LogRldFloorManager, Log, TEXT("DebugDrawLegend: 緑=床マス 赤=壁マス 青=階段マス 水色=部屋外枠 黄=プレイヤー開始位置 紫=階段強調"));
+    bDebugInfoLogged = true;
 
     UE_LOG(
         LogRldFloorManager,
-        Log,
-        TEXT("DebugDrawLegend: フロア番号=%d 部屋数=%d 開始座標=(%d,%d) 階段座標=(%d,%d)"),
+        Verbose,
+        TEXT("LogDebugDrawInfo: フロアデバッグ描画凡例 緑=床マス 赤=壁マス 青=階段マス 水色=セクション外枠 黄=プレイヤー開始位置 紫=階段強調")
+    );
+
+    UE_LOG(
+        LogRldFloorManager,
+        Verbose,
+        TEXT("LogDebugDrawInfo: フロアデバッグ描画情報 フロア番号=%d セクション数=%d 開始座標=(%d,%d) 階段座標=(%d,%d)"),
         currentFloorIndex,
-        currentFloorLayout.rooms.Num(),
+        currentFloorLayout.sections.Num(),
         currentFloorLayout.playerStartGridCoord.X,
         currentFloorLayout.playerStartGridCoord.Y,
         currentFloorLayout.stairsGridCoord.X,
@@ -507,7 +530,7 @@ bool ARldFloorManager::ShouldDrawContinuousDebug() const
         && debugSubsystem->IsCategoryEnabled(CmnDebugCategories::Floor);
 }
 
-/** 現在フロアのデバッグ描画を行う */
+/** 現在のフロアのデバッグ描画を行う */
 void ARldFloorManager::DrawDebugFloorStateInternal(bool bOutputLog) const
 {
     UWorld* world = GetWorld();
@@ -568,15 +591,15 @@ void ARldFloorManager::DrawDebugFloorStateInternal(bool bOutputLog) const
         }
     }
 
-    // 部屋外枠を描画
-    if (bDrawRoomBounds)
+    // セクション外枠を描画
+    if (bDrawSectionBounds)
     {
-        for (const FCmnGridRoom& room : currentFloorLayout.rooms)
+        for (const FCmnGridSection& section : currentFloorLayout.sections)
         {
-            debugSubsystem->DrawGridRoomBounds(
+            debugSubsystem->DrawGridSectionBounds(
                 currentFloorDefinition.gridDefinition,
-                room,
-                roomBoundsDebugStyle
+                section,
+                sectionBoundsDebugStyle
             );
         }
     }
@@ -606,9 +629,9 @@ void ARldFloorManager::DrawDebugFloorStateInternal(bool bOutputLog) const
         UE_LOG(
             LogRldFloorManager,
             Log,
-            TEXT("DrawDebugFloorState: フロア番号=%d 部屋数=%d 開始座標=(%d,%d) 階段座標=(%d,%d)"),
+            TEXT("DrawDebugFloorState: フロアデバッグ描画完了 フロア番号=%d セクション数=%d 開始座標=(%d,%d) 階段座標=(%d,%d)"),
             currentFloorIndex,
-            currentFloorLayout.rooms.Num(),
+            currentFloorLayout.sections.Num(),
             currentFloorLayout.playerStartGridCoord.X,
             currentFloorLayout.playerStartGridCoord.Y,
             currentFloorLayout.stairsGridCoord.X,

@@ -10,17 +10,16 @@ ACmnGridActorBase::ACmnGridActorBase()
     PrimaryActorTick.bCanEverTick = false;
 }
 
-/**
- * 現在のグリッド座標を設定する
- */
+/** 現在のグリッド座標を設定する */
 void ACmnGridActorBase::SetCurrentGridCoord(const FIntPoint& newGridCoord)
 {
     currentGridCoord = newGridCoord;
 
     UE_LOG(
         LogCmnGridActorBase,
-        Log,
-        TEXT("SetCurrentGridCoord: 現在座標=(%d,%d)"),
+        Verbose,
+        TEXT("SetCurrentGridCoord: Actor=%s 現在の座標=(%d,%d)"),
+        *GetNameSafe(this),
         currentGridCoord.X,
         currentGridCoord.Y
     );

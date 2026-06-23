@@ -6,7 +6,7 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "Common/Debug/CmnDebugDrawTypes.h"
 #include "Common/Grid/CmnGridDefinition.h"
-#include "Common/ProcGen/CmnGridRoom.h"
+#include "Common/ProcGen/CmnGridSection.h"
 #include "CmnDebugWorldSubsystem.generated.h"
 
 /**
@@ -95,16 +95,16 @@ public:
     ) const;
 
     /**
-     * 部屋矩形外枠を描画する
+     * セクション矩形外枠を描画する
      *
      * @param gridDefinition グリッド定義
-     * @param room 描画対象部屋
+     * @param section 描画対象セクション
      * @param drawStyle 描画設定
      */
     UFUNCTION(BlueprintCallable, Category = "Cmn|Debug")
-    void DrawGridRoomBounds(
+    void DrawGridSectionBounds(
         const FCmnGridDefinition& gridDefinition,
-        const FCmnGridRoom& room,
+        const FCmnGridSection& section,
         const FCmnDebugDrawStyle& drawStyle
     ) const;
 

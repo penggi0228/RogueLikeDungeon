@@ -26,7 +26,12 @@ void URldDebugOptionsWidget::NativeOnInitialized()
     }
     else
     {
-        UE_LOG(LogRldDebugOptions, Warning, TEXT("NativeOnInitialized: ButtonDebugEnabledRowが未設定です"));
+        UE_LOG(
+            LogRldDebugOptions,
+            Warning,
+            TEXT("NativeOnInitialized: Widget=%s ButtonDebugEnabledRowが未設定です"),
+            *GetNameSafe(this)
+        );
     }
 
     // グリッド描画行ボタン取得時はイベント登録
@@ -36,7 +41,12 @@ void URldDebugOptionsWidget::NativeOnInitialized()
     }
     else
     {
-        UE_LOG(LogRldDebugOptions, Warning, TEXT("NativeOnInitialized: ButtonGridDebugDrawRowが未設定です"));
+        UE_LOG(
+            LogRldDebugOptions,
+            Warning,
+            TEXT("NativeOnInitialized: Widget=%s ButtonGridDebugDrawRowが未設定です"),
+            *GetNameSafe(this)
+        );
     }
 
     // フロア描画行ボタン取得時はイベント登録
@@ -46,7 +56,12 @@ void URldDebugOptionsWidget::NativeOnInitialized()
     }
     else
     {
-        UE_LOG(LogRldDebugOptions, Warning, TEXT("NativeOnInitialized: ButtonFloorDebugDrawRowが未設定です"));
+        UE_LOG(
+            LogRldDebugOptions,
+            Warning,
+            TEXT("NativeOnInitialized: Widget=%s ButtonFloorDebugDrawRowが未設定です"),
+            *GetNameSafe(this)
+        );
     }
 
     // AI描画行ボタン取得時はイベント登録
@@ -56,7 +71,12 @@ void URldDebugOptionsWidget::NativeOnInitialized()
     }
     else
     {
-        UE_LOG(LogRldDebugOptions, Warning, TEXT("NativeOnInitialized: ButtonAIDebugDrawRowが未設定です"));
+        UE_LOG(
+            LogRldDebugOptions,
+            Warning,
+            TEXT("NativeOnInitialized: Widget=%s ButtonAIDebugDrawRowが未設定です"),
+            *GetNameSafe(this)
+        );
     }
 
     // 当たり判定描画行ボタン取得時はイベント登録
@@ -66,7 +86,12 @@ void URldDebugOptionsWidget::NativeOnInitialized()
     }
     else
     {
-        UE_LOG(LogRldDebugOptions, Warning, TEXT("NativeOnInitialized: ButtonCollisionDebugDrawRowが未設定です"));
+        UE_LOG(
+            LogRldDebugOptions,
+            Warning,
+            TEXT("NativeOnInitialized: Widget=%s ButtonCollisionDebugDrawRowが未設定です"),
+            *GetNameSafe(this)
+        );
     }
 
     // ----- チェックボックス -----
@@ -78,7 +103,12 @@ void URldDebugOptionsWidget::NativeOnInitialized()
     }
     else
     {
-        UE_LOG(LogRldDebugOptions, Warning, TEXT("NativeOnInitialized: CheckBoxDebugEnabledが未設定です"));
+        UE_LOG(
+            LogRldDebugOptions,
+            Warning,
+            TEXT("NativeOnInitialized: Widget=%s CheckBoxDebugEnabledが未設定です"),
+            *GetNameSafe(this)
+        );
     }
 
     // グリッド描画チェックボックス取得時はイベント登録
@@ -88,7 +118,12 @@ void URldDebugOptionsWidget::NativeOnInitialized()
     }
     else
     {
-        UE_LOG(LogRldDebugOptions, Warning, TEXT("NativeOnInitialized: CheckBoxGridDebugDrawが未設定です"));
+        UE_LOG(
+            LogRldDebugOptions,
+            Warning,
+            TEXT("NativeOnInitialized: Widget=%s CheckBoxGridDebugDrawが未設定です"),
+            *GetNameSafe(this)
+        );
     }
 
     // フロア描画チェックボックス取得時はイベント登録
@@ -98,7 +133,12 @@ void URldDebugOptionsWidget::NativeOnInitialized()
     }
     else
     {
-        UE_LOG(LogRldDebugOptions, Warning, TEXT("NativeOnInitialized: CheckBoxFloorDebugDrawが未設定です"));
+        UE_LOG(
+            LogRldDebugOptions,
+            Warning,
+            TEXT("NativeOnInitialized: Widget=%s CheckBoxFloorDebugDrawが未設定です"),
+            *GetNameSafe(this)
+        );
     }
 
     // AI描画チェックボックス取得時はイベント登録
@@ -108,7 +148,12 @@ void URldDebugOptionsWidget::NativeOnInitialized()
     }
     else
     {
-        UE_LOG(LogRldDebugOptions, Warning, TEXT("NativeOnInitialized: CheckBoxAIDebugDrawが未設定です"));
+        UE_LOG(
+            LogRldDebugOptions,
+            Warning,
+            TEXT("NativeOnInitialized: Widget=%s CheckBoxAIDebugDrawが未設定です"),
+            *GetNameSafe(this)
+        );
     }
 
     // 当たり判定描画チェックボックス取得時はイベント登録
@@ -118,7 +163,12 @@ void URldDebugOptionsWidget::NativeOnInitialized()
     }
     else
     {
-        UE_LOG(LogRldDebugOptions, Warning, TEXT("NativeOnInitialized: CheckBoxCollisionDebugDrawが未設定です"));
+        UE_LOG(
+            LogRldDebugOptions,
+            Warning,
+            TEXT("NativeOnInitialized: Widget=%s CheckBoxCollisionDebugDrawが未設定です"),
+            *GetNameSafe(this)
+        );
     }
 
     // ----- 操作ボタン -----
@@ -130,7 +180,12 @@ void URldDebugOptionsWidget::NativeOnInitialized()
     }
     else
     {
-        UE_LOG(LogRldDebugOptions, Warning, TEXT("NativeOnInitialized: ButtonCloseが未設定です"));
+        UE_LOG(
+            LogRldDebugOptions,
+            Warning,
+            TEXT("NativeOnInitialized: Widget=%s ButtonCloseが未設定です"),
+            *GetNameSafe(this)
+        );
     }
 }
 
@@ -157,7 +212,13 @@ void URldDebugOptionsWidget::MoveDebugFocus(int32 moveOffset)
     // フォーカス対象がない場合は移動しない
     if (rowButtons.Num() == 0)
     {
-        UE_LOG(LogRldDebugOptions, Warning, TEXT("MoveDebugFocus: フォーカス対象が存在しないため移動しません"));
+        UE_LOG(
+            LogRldDebugOptions,
+            Warning,
+            TEXT("MoveDebugFocus: Widget=%s フォーカス対象が存在しないため移動しません"),
+            *GetNameSafe(this)
+        );
+
         return;
     }
 
@@ -185,7 +246,13 @@ void URldDebugOptionsWidget::ConfirmFocusedDebugItem()
     // フォーカス対象がない場合は決定しない
     if (rowButtons.Num() == 0)
     {
-        UE_LOG(LogRldDebugOptions, Warning, TEXT("ConfirmFocusedDebugItem: フォーカス対象が存在しないため決定できません"));
+        UE_LOG(
+            LogRldDebugOptions,
+            Warning,
+            TEXT("ConfirmFocusedDebugItem: Widget=%s フォーカス対象が存在しないため決定できません"),
+            *GetNameSafe(this)
+        );
+
         return;
     }
 
@@ -193,34 +260,44 @@ void URldDebugOptionsWidget::ConfirmFocusedDebugItem()
 
     UButton* focusedButton = rowButtons[focusedRowIndex];
 
-    // 現在フォーカス行に対応する処理を実行
+    // デバッグ描画全体行の場合は全体状態を反転する
     if (focusedButton == ButtonDebugEnabledRow)
     {
         OnDebugEnabledRowClicked();
     }
+    // グリッド行の場合はGridカテゴリを反転する
     else if (focusedButton == ButtonGridDebugDrawRow)
     {
         OnGridDebugDrawRowClicked();
     }
+    // フロア行の場合はFloorカテゴリを反転する
     else if (focusedButton == ButtonFloorDebugDrawRow)
     {
         OnFloorDebugDrawRowClicked();
     }
+    // AI行の場合はAIカテゴリを反転する
     else if (focusedButton == ButtonAIDebugDrawRow)
     {
         OnAIDebugDrawRowClicked();
     }
+    // 当たり判定行の場合はCollisionカテゴリを反転する
     else if (focusedButton == ButtonCollisionDebugDrawRow)
     {
         OnCollisionDebugDrawRowClicked();
     }
+    // 閉じるボタンの場合はデバッグオプションを閉じる
     else if (focusedButton == ButtonClose)
     {
         CloseDebugOptions();
     }
     else
     {
-        UE_LOG(LogRldDebugOptions, Warning, TEXT("ConfirmFocusedDebugItem: 対応する処理が見つかりません"));
+        UE_LOG(
+            LogRldDebugOptions,
+            Warning,
+            TEXT("ConfirmFocusedDebugItem: Widget=%s 対応する処理が見つかりません"),
+            *GetNameSafe(this)
+        );
     }
 }
 
@@ -236,10 +313,20 @@ void URldDebugOptionsWidget::CloseDebugOptions()
     }
     else
     {
-        UE_LOG(LogRldDebugOptions, Warning, TEXT("CloseDebugOptions: OwningPlayerからRldPlayerControllerを取得できません"));
+        UE_LOG(
+            LogRldDebugOptions,
+            Warning,
+            TEXT("CloseDebugOptions: Widget=%s OwningPlayerからRldPlayerControllerを取得できません"),
+            *GetNameSafe(this)
+        );
     }
 
-    UE_LOG(LogRldDebugOptions, Log, TEXT("CloseDebugOptions: デバッグオプションを閉じました"));
+    UE_LOG(
+        LogRldDebugOptions,
+        Log,
+        TEXT("CloseDebugOptions: Widget=%s デバッグオプションを閉じました"),
+        *GetNameSafe(this)
+    );
 }
 
 /** デバッグ描画全体行クリック時の処理を行う */
@@ -249,28 +336,28 @@ void URldDebugOptionsWidget::OnDebugEnabledRowClicked()
     ToggleDebugEnabled();
 }
 
-/** グリッド描画行クリック時の処理を行う */
+/** グリッドデバッグ描画行クリック時の処理を行う */
 void URldDebugOptionsWidget::OnGridDebugDrawRowClicked()
 {
     // 行クリック時はGridカテゴリの状態を反転する
     ToggleDebugCategory(CmnDebugCategories::Grid);
 }
 
-/** フロア描画行クリック時の処理を行う */
+/** フロアデバッグ描画行クリック時の処理を行う */
 void URldDebugOptionsWidget::OnFloorDebugDrawRowClicked()
 {
     // 行クリック時はFloorカテゴリの状態を反転する
     ToggleDebugCategory(CmnDebugCategories::Floor);
 }
 
-/** AI描画行クリック時の処理を行う */
+/** AIデバッグ描画行クリック時の処理を行う */
 void URldDebugOptionsWidget::OnAIDebugDrawRowClicked()
 {
     // 行クリック時はAIカテゴリの状態を反転する
     ToggleDebugCategory(CmnDebugCategories::AI);
 }
 
-/** 当たり判定描画行クリック時の処理を行う */
+/** 当たり判定デバッグ描画行クリック時の処理を行う */
 void URldDebugOptionsWidget::OnCollisionDebugDrawRowClicked()
 {
     // 行クリック時はCollisionカテゴリの状態を反転する
@@ -291,7 +378,13 @@ void URldDebugOptionsWidget::OnDebugEnabledChanged(bool bIsChecked)
     // DebugWorldSubsystem未取得時は更新しない
     if (!debugSubsystem)
     {
-        UE_LOG(LogRldDebugOptions, Warning, TEXT("OnDebugEnabledChanged: DebugWorldSubsystem未取得のため更新しません"));
+        UE_LOG(
+            LogRldDebugOptions,
+            Warning,
+            TEXT("OnDebugEnabledChanged: Widget=%s DebugWorldSubsystem未取得のため更新しません"),
+            *GetNameSafe(this)
+        );
+
         return;
     }
 
@@ -301,7 +394,8 @@ void URldDebugOptionsWidget::OnDebugEnabledChanged(bool bIsChecked)
     UE_LOG(
         LogRldDebugOptions,
         Log,
-        TEXT("OnDebugEnabledChanged: デバッグ描画全体=%s"),
+        TEXT("OnDebugEnabledChanged: Widget=%s デバッグ描画全体=%s"),
+        *GetNameSafe(this),
         bIsChecked ? TEXT("有効") : TEXT("無効")
     );
 
@@ -309,7 +403,7 @@ void URldDebugOptionsWidget::OnDebugEnabledChanged(bool bIsChecked)
     UpdateCategoryCheckBoxEnabledState();
 }
 
-/** グリッド描画チェック変更時の処理を行う */
+/** グリッドデバッグ描画チェック変更時の処理を行う */
 void URldDebugOptionsWidget::OnGridDebugDrawChanged(bool bIsChecked)
 {
     // UI反映処理によるチェック変更ではSubsystemを更新しない
@@ -321,7 +415,7 @@ void URldDebugOptionsWidget::OnGridDebugDrawChanged(bool bIsChecked)
     SetDebugCategoryEnabled(CmnDebugCategories::Grid, bIsChecked, TEXT("OnGridDebugDrawChanged"));
 }
 
-/** フロア描画チェック変更時の処理を行う */
+/** フロアデバッグ描画チェック変更時の処理を行う */
 void URldDebugOptionsWidget::OnFloorDebugDrawChanged(bool bIsChecked)
 {
     // UI反映処理によるチェック変更ではSubsystemを更新しない
@@ -333,7 +427,7 @@ void URldDebugOptionsWidget::OnFloorDebugDrawChanged(bool bIsChecked)
     SetDebugCategoryEnabled(CmnDebugCategories::Floor, bIsChecked, TEXT("OnFloorDebugDrawChanged"));
 }
 
-/** AI描画チェック変更時の処理を行う */
+/** AIデバッグ描画チェック変更時の処理を行う */
 void URldDebugOptionsWidget::OnAIDebugDrawChanged(bool bIsChecked)
 {
     // UI反映処理によるチェック変更ではSubsystemを更新しない
@@ -345,7 +439,7 @@ void URldDebugOptionsWidget::OnAIDebugDrawChanged(bool bIsChecked)
     SetDebugCategoryEnabled(CmnDebugCategories::AI, bIsChecked, TEXT("OnAIDebugDrawChanged"));
 }
 
-/** 当たり判定描画チェック変更時の処理を行う */
+/** 当たり判定デバッグ描画チェック変更時の処理を行う */
 void URldDebugOptionsWidget::OnCollisionDebugDrawChanged(bool bIsChecked)
 {
     // UI反映処理によるチェック変更ではSubsystemを更新しない
@@ -385,7 +479,13 @@ void URldDebugOptionsWidget::RefreshUIFromDebugSettings()
     // DebugWorldSubsystem未取得時は反映しない
     if (!debugSubsystem)
     {
-        UE_LOG(LogRldDebugOptions, Warning, TEXT("RefreshUIFromDebugSettings: DebugWorldSubsystem未取得のため反映しません"));
+        UE_LOG(
+            LogRldDebugOptions,
+            Warning,
+            TEXT("RefreshUIFromDebugSettings: Widget=%s DebugWorldSubsystem未取得のため反映しません"),
+            *GetNameSafe(this)
+        );
+
         return;
     }
 
@@ -408,7 +508,7 @@ void URldDebugOptionsWidget::RefreshUIFromDebugSettings()
     bRefreshingUI = false;
 }
 
-/** カテゴリチェックボックスの有効状態を更新する */
+/** デバッグ種別チェックボックスの有効状態を更新する */
 void URldDebugOptionsWidget::UpdateCategoryCheckBoxEnabledState()
 {
     const UCmnDebugWorldSubsystem* debugSubsystem = GetDebugWorldSubsystem();
@@ -422,16 +522,19 @@ void URldDebugOptionsWidget::UpdateCategoryCheckBoxEnabledState()
         CheckBoxGridDebugDraw->SetIsEnabled(bDebugEnabled);
     }
 
+    // デバッグ描画全体が無効な場合は個別カテゴリ操作不可
     if (CheckBoxFloorDebugDraw)
     {
         CheckBoxFloorDebugDraw->SetIsEnabled(bDebugEnabled);
     }
 
+    // デバッグ描画全体が無効な場合は個別カテゴリ操作不可
     if (CheckBoxAIDebugDraw)
     {
         CheckBoxAIDebugDraw->SetIsEnabled(bDebugEnabled);
     }
 
+    // デバッグ描画全体が無効な場合は個別カテゴリ操作不可
     if (CheckBoxCollisionDebugDraw)
     {
         CheckBoxCollisionDebugDraw->SetIsEnabled(bDebugEnabled);
@@ -443,23 +546,26 @@ void URldDebugOptionsWidget::UpdateCategoryCheckBoxEnabledState()
         ButtonGridDebugDrawRow->SetIsEnabled(bDebugEnabled);
     }
 
+    // 行クリックでもカテゴリ状態が変わらないよう行ボタンも同様に制御
     if (ButtonFloorDebugDrawRow)
     {
         ButtonFloorDebugDrawRow->SetIsEnabled(bDebugEnabled);
     }
 
+    // 行クリックでもカテゴリ状態が変わらないよう行ボタンも同様に制御
     if (ButtonAIDebugDrawRow)
     {
         ButtonAIDebugDrawRow->SetIsEnabled(bDebugEnabled);
     }
 
+    // 行クリックでもカテゴリ状態が変わらないよう行ボタンも同様に制御
     if (ButtonCollisionDebugDrawRow)
     {
         ButtonCollisionDebugDrawRow->SetIsEnabled(bDebugEnabled);
     }
 }
 
-/** カテゴリチェック状態をUIへ反映する */
+/** カテゴリチェックボックスへカテゴリ状態を反映する */
 void URldDebugOptionsWidget::RefreshCategoryCheckBox(UCheckBox* checkBox, FName categoryName) const
 {
     // チェックボックス未取得時は処理しない
@@ -488,7 +594,13 @@ void URldDebugOptionsWidget::ToggleDebugEnabled()
     // DebugWorldSubsystem未取得時は更新しない
     if (!debugSubsystem)
     {
-        UE_LOG(LogRldDebugOptions, Warning, TEXT("ToggleDebugEnabled: DebugWorldSubsystem未取得のため更新しません"));
+        UE_LOG(
+            LogRldDebugOptions,
+            Warning,
+            TEXT("ToggleDebugEnabled: Widget=%s DebugWorldSubsystem未取得のため更新しません"),
+            *GetNameSafe(this)
+        );
+
         return;
     }
 
@@ -507,7 +619,8 @@ void URldDebugOptionsWidget::ToggleDebugEnabled()
     UE_LOG(
         LogRldDebugOptions,
         Log,
-        TEXT("ToggleDebugEnabled: デバッグ描画全体=%s"),
+        TEXT("ToggleDebugEnabled: Widget=%s デバッグ描画全体=%s"),
+        *GetNameSafe(this),
         bNewEnabled ? TEXT("有効") : TEXT("無効")
     );
 }
@@ -520,7 +633,14 @@ void URldDebugOptionsWidget::ToggleDebugCategory(FName categoryName)
     // DebugWorldSubsystem未取得時は更新しない
     if (!debugSubsystem)
     {
-        UE_LOG(LogRldDebugOptions, Warning, TEXT("ToggleDebugCategory: DebugWorldSubsystem未取得のため更新しません"));
+        UE_LOG(
+            LogRldDebugOptions,
+            Warning,
+            TEXT("ToggleDebugCategory: Widget=%s DebugWorldSubsystem未取得のため更新しません カテゴリ=%s"),
+            *GetNameSafe(this),
+            *categoryName.ToString()
+        );
+
         return;
     }
 
@@ -542,7 +662,8 @@ void URldDebugOptionsWidget::ToggleDebugCategory(FName categoryName)
     UE_LOG(
         LogRldDebugOptions,
         Log,
-        TEXT("ToggleDebugCategory: カテゴリ=%s 状態=%s"),
+        TEXT("ToggleDebugCategory: Widget=%s カテゴリ=%s 状態=%s"),
+        *GetNameSafe(this),
         *categoryName.ToString(),
         bNewEnabled ? TEXT("有効") : TEXT("無効")
     );
@@ -563,9 +684,12 @@ void URldDebugOptionsWidget::SetDebugCategoryEnabled(
         UE_LOG(
             LogRldDebugOptions,
             Warning,
-            TEXT("%s: DebugWorldSubsystem未取得のため更新しません"),
-            sourceFunctionName
+            TEXT("%s: Widget=%s DebugWorldSubsystem未取得のため更新しません カテゴリ=%s"),
+            sourceFunctionName,
+            *GetNameSafe(this),
+            *categoryName.ToString()
         );
+
         return;
     }
 
@@ -582,8 +706,9 @@ void URldDebugOptionsWidget::SetDebugCategoryEnabled(
     UE_LOG(
         LogRldDebugOptions,
         Log,
-        TEXT("%s: カテゴリ=%s 状態=%s"),
+        TEXT("%s: Widget=%s カテゴリ=%s 状態=%s"),
         sourceFunctionName,
+        *GetNameSafe(this),
         *categoryName.ToString(),
         bIsChecked ? TEXT("有効") : TEXT("無効")
     );
@@ -594,31 +719,37 @@ TArray<UButton*> URldDebugOptionsWidget::GetFocusableRowButtons() const
 {
     TArray<UButton*> rowButtons;
 
+    // デバッグ描画全体行がある場合はフォーカス対象へ追加
     if (ButtonDebugEnabledRow)
     {
         rowButtons.Add(ButtonDebugEnabledRow);
     }
 
+    // グリッドデバッグ描画行がある場合はフォーカス対象へ追加
     if (ButtonGridDebugDrawRow)
     {
         rowButtons.Add(ButtonGridDebugDrawRow);
     }
 
+    // フロアデバッグ描画行がある場合はフォーカス対象へ追加
     if (ButtonFloorDebugDrawRow)
     {
         rowButtons.Add(ButtonFloorDebugDrawRow);
     }
 
+    // AIデバッグ描画行がある場合はフォーカス対象へ追加
     if (ButtonAIDebugDrawRow)
     {
         rowButtons.Add(ButtonAIDebugDrawRow);
     }
 
+    // 当たり判定デバッグ描画行がある場合はフォーカス対象へ追加
     if (ButtonCollisionDebugDrawRow)
     {
         rowButtons.Add(ButtonCollisionDebugDrawRow);
     }
 
+    // 閉じるボタンがある場合はフォーカス対象へ追加
     if (ButtonClose)
     {
         rowButtons.Add(ButtonClose);
@@ -643,12 +774,19 @@ void URldDebugOptionsWidget::ApplyCurrentDebugFocus()
     // フォーカス対象がない場合は適用しない
     if (rowButtons.Num() == 0)
     {
-        UE_LOG(LogRldDebugOptions, Warning, TEXT("ApplyCurrentDebugFocus: フォーカス対象が存在しないため適用しません"));
+        UE_LOG(
+            LogRldDebugOptions,
+            Warning,
+            TEXT("ApplyCurrentDebugFocus: Widget=%s フォーカス対象が存在しないため適用しません"),
+            *GetNameSafe(this)
+        );
+
         return;
     }
 
     focusedRowIndex = FMath::Clamp(focusedRowIndex, 0, rowButtons.Num() - 1);
 
+    // フォーカス行のボタンが有効な場合はキーボードフォーカスを適用
     if (rowButtons[focusedRowIndex])
     {
         rowButtons[focusedRowIndex]->SetKeyboardFocus();

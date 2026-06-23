@@ -13,6 +13,7 @@ ARldGridManager::ARldGridManager()
 {
     PrimaryActorTick.bCanEverTick = true;
 
+    // 床マス描画設定
     floorDebugStyle.drawColor = FColor::Green;
     floorDebugStyle.bPersistentLines = false;
     floorDebugStyle.duration = 0.15f;
@@ -20,6 +21,7 @@ ARldGridManager::ARldGridManager()
     floorDebugStyle.zOffset = 5.0f;
     floorDebugStyle.sizeScale = 0.18f;
 
+    // 壁マス描画設定
     wallDebugStyle.drawColor = FColor::Red;
     wallDebugStyle.bPersistentLines = false;
     wallDebugStyle.duration = 0.15f;
@@ -27,6 +29,7 @@ ARldGridManager::ARldGridManager()
     wallDebugStyle.zOffset = 25.0f;
     wallDebugStyle.sizeScale = 0.45f;
 
+    // 階段マス描画設定
     stairsDebugStyle.drawColor = FColor::Blue;
     stairsDebugStyle.bPersistentLines = false;
     stairsDebugStyle.duration = 0.15f;
@@ -70,12 +73,12 @@ void ARldGridManager::ApplyFloorLayout(
 
     // 常時デバッグ描画の状態を初期化
     continuousDebugDrawElapsed = 0.0f;
-    bDebugLegendLogged = false;
+    bDebugInfoLogged = false;
 
     UE_LOG(
         LogRldGridManager,
         Log,
-        TEXT("ApplyFloorLayout: グリッドサイズ=(%d,%d) 床数=%d 壁数=%d 階段座標=(%d,%d)"),
+        TEXT("ApplyFloorLayout: グリッドレイアウト反映完了 グリッドサイズ=(%d,%d) 床数=%d 壁数=%d 階段座標=(%d,%d)"),
         gridWidth,
         gridHeight,
         floorCells.Num(),
@@ -88,7 +91,7 @@ void ARldGridManager::ApplyFloorLayout(
     if (bDrawDebugOnApplyFloorLayout)
     {
         DrawDebugGridState();
-        LogDebugDrawLegend();
+        LogDebugDrawInfo();
     }
 }
 
@@ -102,12 +105,12 @@ bool ARldGridManager::IsInsideGrid(const FIntPoint& gridCoord) const
     UE_LOG(
         LogRldGridManager,
         Verbose,
-        TEXT("IsInsideGrid: グリッド座標=(%d,%d) グリッドサイズ=(%d,%d) 判定結果=%d"),
+        TEXT("IsInsideGrid: グリッド座標=(%d,%d) グリッドサイズ=(%d,%d) 範囲内=%s"),
         gridCoord.X,
         gridCoord.Y,
         gridWidth,
         gridHeight,
-        bIsInsideGrid ? 1 : 0
+        bIsInsideGrid ? TEXT("true") : TEXT("false")
     );
 
     return bIsInsideGrid;
@@ -121,10 +124,10 @@ bool ARldGridManager::IsFloorCell(const FIntPoint& gridCoord) const
     UE_LOG(
         LogRldGridManager,
         Verbose,
-        TEXT("IsFloorCell: グリッド座標=(%d,%d) 判定結果=%d"),
+        TEXT("IsFloorCell: グリッド座標=(%d,%d) 床マス=%s"),
         gridCoord.X,
         gridCoord.Y,
-        bIsFloor ? 1 : 0
+        bIsFloor ? TEXT("true") : TEXT("false")
     );
 
     return bIsFloor;
@@ -138,10 +141,10 @@ bool ARldGridManager::IsWallCell(const FIntPoint& gridCoord) const
     UE_LOG(
         LogRldGridManager,
         Verbose,
-        TEXT("IsWallCell: グリッド座標=(%d,%d) 判定結果=%d"),
+        TEXT("IsWallCell: グリッド座標=(%d,%d) 壁マス=%s"),
         gridCoord.X,
         gridCoord.Y,
-        bIsWallCell ? 1 : 0
+        bIsWallCell ? TEXT("true") : TEXT("false")
     );
 
     return bIsWallCell;
@@ -155,12 +158,12 @@ bool ARldGridManager::IsStairsCell(const FIntPoint& gridCoord) const
     UE_LOG(
         LogRldGridManager,
         Verbose,
-        TEXT("IsStairsCell: グリッド座標=(%d,%d) 階段座標=(%d,%d) 判定結果=%d"),
+        TEXT("IsStairsCell: グリッド座標=(%d,%d) 階段座標=(%d,%d) 階段マス=%s"),
         gridCoord.X,
         gridCoord.Y,
         stairsGridCoord.X,
         stairsGridCoord.Y,
-        bIsStairsCell ? 1 : 0
+        bIsStairsCell ? TEXT("true") : TEXT("false")
     );
 
     return bIsStairsCell;
@@ -175,10 +178,11 @@ bool ARldGridManager::IsOccupied(const FIntPoint& gridCoord) const
     UE_LOG(
         LogRldGridManager,
         Verbose,
-        TEXT("IsOccupied: グリッド座標=(%d,%d) 判定結果=%d"),
+        TEXT("IsOccupied: グリッド座標=(%d,%d) 占有あり=%s 占有Actor=%s"),
         gridCoord.X,
         gridCoord.Y,
-        bIsOccupied ? 1 : 0
+        bIsOccupied ? TEXT("true") : TEXT("false"),
+        bIsOccupied ? *GetNameSafe(foundActor->Get()) : TEXT("None")
     );
 
     return bIsOccupied;
@@ -187,46 +191,52 @@ bool ARldGridManager::IsOccupied(const FIntPoint& gridCoord) const
 /** 指定グリッド座標へ通行可能か判定する */
 bool ARldGridManager::IsWalkable(const FIntPoint& gridCoord) const
 {
+    // 範囲外マスは通行不可
     if (!IsInsideGrid(gridCoord))
     {
         UE_LOG(
             LogRldGridManager,
             Verbose,
-            TEXT("IsWalkable: グリッド座標=(%d,%d) 判定結果=0 理由=範囲外"),
+            TEXT("IsWalkable: グリッド座標=(%d,%d) 通行可能=false 理由=範囲外"),
             gridCoord.X,
             gridCoord.Y
         );
+
         return false;
     }
 
+    // 床マス以外は通行不可
     if (!IsFloorCell(gridCoord))
     {
         UE_LOG(
             LogRldGridManager,
             Verbose,
-            TEXT("IsWalkable: グリッド座標=(%d,%d) 判定結果=0 理由=床マスではない"),
+            TEXT("IsWalkable: グリッド座標=(%d,%d) 通行可能=false 理由=床マスではない"),
             gridCoord.X,
             gridCoord.Y
         );
+
         return false;
     }
 
+    // 占有中のマスは通行不可
     if (IsOccupied(gridCoord))
     {
         UE_LOG(
             LogRldGridManager,
             Verbose,
-            TEXT("IsWalkable: グリッド座標=(%d,%d) 判定結果=0 理由=占有中"),
+            TEXT("IsWalkable: グリッド座標=(%d,%d) 通行可能=false 理由=占有中"),
             gridCoord.X,
             gridCoord.Y
         );
+
         return false;
     }
 
     UE_LOG(
         LogRldGridManager,
         Verbose,
-        TEXT("IsWalkable: グリッド座標=(%d,%d) 判定結果=1"),
+        TEXT("IsWalkable: グリッド座標=(%d,%d) 通行可能=true"),
         gridCoord.X,
         gridCoord.Y
     );
@@ -239,6 +249,7 @@ AActor* ARldGridManager::GetOccupyingActor(const FIntPoint& gridCoord) const
 {
     const TWeakObjectPtr<AActor>* foundActor = occupantMap.Find(gridCoord);
 
+    // 指定座標に登録がない場合はnullptrを返す
     if (!foundActor)
     {
         return nullptr;
@@ -250,27 +261,65 @@ AActor* ARldGridManager::GetOccupyingActor(const FIntPoint& gridCoord) const
 /** グリッド座標へ占有Actorを登録する */
 bool ARldGridManager::RegisterOccupant(const FIntPoint& gridCoord, AActor* occupantActor)
 {
+    // 登録対象Actorが無効な場合は登録しない
     if (!occupantActor)
     {
-        UE_LOG(LogRldGridManager, Warning, TEXT("RegisterOccupant: occupantActorがnullのため登録しません"));
+        UE_LOG(
+            LogRldGridManager,
+            Warning,
+            TEXT("RegisterOccupant: 占有Actorがnullのため登録しません グリッド座標=(%d,%d)"),
+            gridCoord.X,
+            gridCoord.Y
+        );
+
         return false;
     }
 
+    // 範囲外マスへは登録しない
     if (!IsInsideGrid(gridCoord))
     {
-        UE_LOG(LogRldGridManager, Warning, TEXT("RegisterOccupant: 範囲外のため登録しません グリッド座標=(%d,%d)"), gridCoord.X, gridCoord.Y);
+        UE_LOG(
+            LogRldGridManager,
+            Warning,
+            TEXT("RegisterOccupant: Actor=%s 範囲外のため登録しません グリッド座標=(%d,%d)"),
+            *GetNameSafe(occupantActor),
+            gridCoord.X,
+            gridCoord.Y
+        );
+
         return false;
     }
 
+    // 床マス以外へは登録しない
     if (!IsFloorCell(gridCoord))
     {
-        UE_LOG(LogRldGridManager, Warning, TEXT("RegisterOccupant: 床マスではないため登録しません グリッド座標=(%d,%d)"), gridCoord.X, gridCoord.Y);
+        UE_LOG(
+            LogRldGridManager,
+            Warning,
+            TEXT("RegisterOccupant: Actor=%s 床マスではないため登録しません グリッド座標=(%d,%d)"),
+            *GetNameSafe(occupantActor),
+            gridCoord.X,
+            gridCoord.Y
+        );
+
         return false;
     }
 
+    // すでに占有中のマスへは登録しない
     if (IsOccupied(gridCoord))
     {
-        UE_LOG(LogRldGridManager, Warning, TEXT("RegisterOccupant: すでに占有中のため登録しません グリッド座標=(%d,%d)"), gridCoord.X, gridCoord.Y);
+        AActor* currentOccupant = GetOccupyingActor(gridCoord);
+
+        UE_LOG(
+            LogRldGridManager,
+            Warning,
+            TEXT("RegisterOccupant: Actor=%s すでに占有中のため登録しません グリッド座標=(%d,%d) 現在の占有Actor=%s"),
+            *GetNameSafe(occupantActor),
+            gridCoord.X,
+            gridCoord.Y,
+            *GetNameSafe(currentOccupant)
+        );
+
         return false;
     }
 
@@ -278,11 +327,11 @@ bool ARldGridManager::RegisterOccupant(const FIntPoint& gridCoord, AActor* occup
 
     UE_LOG(
         LogRldGridManager,
-        Log,
-        TEXT("RegisterOccupant: 登録しました グリッド座標=(%d,%d) Actor=%s"),
+        Verbose,
+        TEXT("RegisterOccupant: Actor=%s 登録しました グリッド座標=(%d,%d)"),
+        *GetNameSafe(occupantActor),
         gridCoord.X,
-        gridCoord.Y,
-        *occupantActor->GetName()
+        gridCoord.Y
     );
 
     return true;
@@ -291,23 +340,50 @@ bool ARldGridManager::RegisterOccupant(const FIntPoint& gridCoord, AActor* occup
 /** グリッド座標から占有Actorを解除する */
 bool ARldGridManager::UnregisterOccupant(const FIntPoint& gridCoord, AActor* occupantActor)
 {
+    // 解除対象Actorが無効な場合は解除しない
     if (!occupantActor)
     {
-        UE_LOG(LogRldGridManager, Warning, TEXT("UnregisterOccupant: occupantActorがnullのため解除しません"));
+        UE_LOG(
+            LogRldGridManager,
+            Warning,
+            TEXT("UnregisterOccupant: 占有Actorがnullのため解除しません グリッド座標=(%d,%d)"),
+            gridCoord.X,
+            gridCoord.Y
+        );
+
         return false;
     }
 
     const TWeakObjectPtr<AActor>* foundActor = occupantMap.Find(gridCoord);
 
+    // 指定座標に有効な登録がない場合は解除しない
     if (!foundActor || !foundActor->IsValid())
     {
-        UE_LOG(LogRldGridManager, Warning, TEXT("UnregisterOccupant: 登録が存在しないため解除しません グリッド座標=(%d,%d)"), gridCoord.X, gridCoord.Y);
+        UE_LOG(
+            LogRldGridManager,
+            Warning,
+            TEXT("UnregisterOccupant: Actor=%s 登録が存在しないため解除しません グリッド座標=(%d,%d)"),
+            *GetNameSafe(occupantActor),
+            gridCoord.X,
+            gridCoord.Y
+        );
+
         return false;
     }
 
+    // 登録済みActorと解除対象Actorが異なる場合は解除しない
     if (foundActor->Get() != occupantActor)
     {
-        UE_LOG(LogRldGridManager, Warning, TEXT("UnregisterOccupant: 登録Actorが一致しないため解除しません グリッド座標=(%d,%d)"), gridCoord.X, gridCoord.Y);
+        UE_LOG(
+            LogRldGridManager,
+            Warning,
+            TEXT("UnregisterOccupant: Actor=%s 登録Actorが一致しないため解除しません グリッド座標=(%d,%d) 登録済みActor=%s"),
+            *GetNameSafe(occupantActor),
+            gridCoord.X,
+            gridCoord.Y,
+            *GetNameSafe(foundActor->Get())
+        );
+
         return false;
     }
 
@@ -315,48 +391,104 @@ bool ARldGridManager::UnregisterOccupant(const FIntPoint& gridCoord, AActor* occ
 
     UE_LOG(
         LogRldGridManager,
-        Log,
-        TEXT("UnregisterOccupant: 解除しました グリッド座標=(%d,%d) Actor=%s"),
+        Verbose,
+        TEXT("UnregisterOccupant: Actor=%s 解除しました グリッド座標=(%d,%d)"),
+        *GetNameSafe(occupantActor),
         gridCoord.X,
-        gridCoord.Y,
-        *occupantActor->GetName()
+        gridCoord.Y
     );
 
     return true;
 }
 
 /** 占有Actorを別グリッド座標へ移動する */
-bool ARldGridManager::MoveOccupant(const FIntPoint& fromGridCoord, const FIntPoint& toGridCoord, AActor* occupantActor)
+bool ARldGridManager::MoveOccupant(
+    const FIntPoint& fromGridCoord,
+    const FIntPoint& toGridCoord,
+    AActor* occupantActor
+)
 {
+    // 移動対象Actorが無効な場合は移動しない
     if (!occupantActor)
     {
-        UE_LOG(LogRldGridManager, Warning, TEXT("MoveOccupant: occupantActorがnullのため移動しません"));
+        UE_LOG(
+            LogRldGridManager,
+            Warning,
+            TEXT("MoveOccupant: 占有Actorがnullのため移動しません 移動前=(%d,%d) 移動先=(%d,%d)"),
+            fromGridCoord.X,
+            fromGridCoord.Y,
+            toGridCoord.X,
+            toGridCoord.Y
+        );
+
         return false;
     }
 
     const TWeakObjectPtr<AActor>* foundActor = occupantMap.Find(fromGridCoord);
 
+    // 移動前座標に移動対象Actorが登録されていない場合は移動しない
     if (!foundActor || !foundActor->IsValid() || foundActor->Get() != occupantActor)
     {
-        UE_LOG(LogRldGridManager, Warning, TEXT("MoveOccupant: 移動前登録が不正のため移動しません 移動前=(%d,%d)"), fromGridCoord.X, fromGridCoord.Y);
+        UE_LOG(
+            LogRldGridManager,
+            Warning,
+            TEXT("MoveOccupant: Actor=%s 移動前登録が不正のため移動しません 移動前=(%d,%d) 移動先=(%d,%d) 登録済みActor=%s"),
+            *GetNameSafe(occupantActor),
+            fromGridCoord.X,
+            fromGridCoord.Y,
+            toGridCoord.X,
+            toGridCoord.Y,
+            (foundActor && foundActor->IsValid()) ? *GetNameSafe(foundActor->Get()) : TEXT("None")
+        );
+
         return false;
     }
 
+    // 移動先が範囲外の場合は移動しない
     if (!IsInsideGrid(toGridCoord))
     {
-        UE_LOG(LogRldGridManager, Warning, TEXT("MoveOccupant: 移動先が範囲外のため移動しません 移動先=(%d,%d)"), toGridCoord.X, toGridCoord.Y);
+        UE_LOG(
+            LogRldGridManager,
+            Warning,
+            TEXT("MoveOccupant: Actor=%s 移動先が範囲外のため移動しません 移動先=(%d,%d)"),
+            *GetNameSafe(occupantActor),
+            toGridCoord.X,
+            toGridCoord.Y
+        );
+
         return false;
     }
 
+    // 移動先が床マスではない場合は移動しない
     if (!IsFloorCell(toGridCoord))
     {
-        UE_LOG(LogRldGridManager, Warning, TEXT("MoveOccupant: 移動先が床マスではないため移動しません 移動先=(%d,%d)"), toGridCoord.X, toGridCoord.Y);
+        UE_LOG(
+            LogRldGridManager,
+            Warning,
+            TEXT("MoveOccupant: Actor=%s 移動先が床マスではないため移動しません 移動先=(%d,%d)"),
+            *GetNameSafe(occupantActor),
+            toGridCoord.X,
+            toGridCoord.Y
+        );
+
         return false;
     }
 
+    // 移動先が占有中の場合は移動しない
     if (IsOccupied(toGridCoord))
     {
-        UE_LOG(LogRldGridManager, Warning, TEXT("MoveOccupant: 移動先が占有中のため移動しません 移動先=(%d,%d)"), toGridCoord.X, toGridCoord.Y);
+        AActor* currentOccupant = GetOccupyingActor(toGridCoord);
+
+        UE_LOG(
+            LogRldGridManager,
+            Warning,
+            TEXT("MoveOccupant: Actor=%s 移動先が占有中のため移動しません 移動先=(%d,%d) 現在の占有Actor=%s"),
+            *GetNameSafe(occupantActor),
+            toGridCoord.X,
+            toGridCoord.Y,
+            *GetNameSafe(currentOccupant)
+        );
+
         return false;
     }
 
@@ -365,13 +497,13 @@ bool ARldGridManager::MoveOccupant(const FIntPoint& fromGridCoord, const FIntPoi
 
     UE_LOG(
         LogRldGridManager,
-        Log,
-        TEXT("MoveOccupant: 移動しました 移動前=(%d,%d) 移動先=(%d,%d) Actor=%s"),
+        Verbose,
+        TEXT("MoveOccupant: Actor=%s 移動しました 移動前=(%d,%d) 移動先=(%d,%d)"),
+        *GetNameSafe(occupantActor),
         fromGridCoord.X,
         fromGridCoord.Y,
         toGridCoord.X,
-        toGridCoord.Y,
-        *occupantActor->GetName()
+        toGridCoord.Y
     );
 
     return true;
@@ -386,7 +518,7 @@ void ARldGridManager::ClearAllOccupants()
 
     UE_LOG(
         LogRldGridManager,
-        Log,
+        Verbose,
         TEXT("ClearAllOccupants: 占有情報をクリアしました 件数=%d"),
         previousOccupantCount
     );
@@ -436,26 +568,27 @@ void ARldGridManager::DrawDebugGridState() const
     DrawDebugGridStateInternal(true);
 }
 
-/** デバッグ描画凡例をログ出力する */
-void ARldGridManager::LogDebugDrawLegend()
+/** デバッグ描画情報をログ出力する */
+void ARldGridManager::LogDebugDrawInfo()
 {
-    if (bDebugLegendLogged)
+    // すでに出力済みの場合は再出力しない
+    if (bDebugInfoLogged)
     {
         return;
     }
 
-    bDebugLegendLogged = true;
+    bDebugInfoLogged = true;
 
     UE_LOG(
         LogRldGridManager,
-        Log,
-        TEXT("DebugDrawLegend: 緑=床マス 赤=壁マス 青=階段マス")
+        Verbose,
+        TEXT("LogDebugDrawInfo: グリッドデバッグ描画凡例 緑=床マス 赤=壁マス 青=階段マス")
     );
 
     UE_LOG(
         LogRldGridManager,
-        Log,
-        TEXT("DebugDrawLegend: 床数=%d 壁数=%d 階段座標=(%d,%d)"),
+        Verbose,
+        TEXT("LogDebugDrawInfo: グリッドデバッグ描画情報 床数=%d 壁数=%d 階段座標=(%d,%d)"),
         floorCells.Num(),
         wallCells.Num(),
         stairsGridCoord.X,
@@ -471,7 +604,7 @@ void ARldGridManager::SetStairsGridCoord(const FIntPoint& newGridCoord)
     UE_LOG(
         LogRldGridManager,
         Log,
-        TEXT("SetStairsGridCoord: 階段座標=(%d,%d)"),
+        TEXT("SetStairsGridCoord: 階段座標設定完了 階段座標=(%d,%d)"),
         stairsGridCoord.X,
         stairsGridCoord.Y
     );
@@ -497,6 +630,7 @@ void ARldGridManager::RebuildCellSets()
 /** グリッドデバッグ描画を更新する */
 void ARldGridManager::UpdateContinuousDebugDraw(float deltaSeconds)
 {
+    // 常時デバッグ描画が無効な場合は経過時間を初期化する
     if (!ShouldDrawContinuousDebug())
     {
         continuousDebugDrawElapsed = 0.0f;
@@ -505,6 +639,7 @@ void ARldGridManager::UpdateContinuousDebugDraw(float deltaSeconds)
 
     continuousDebugDrawElapsed += deltaSeconds;
 
+    // 再描画間隔に達していない場合は描画しない
     if (continuousDebugDrawElapsed < continuousDebugDrawInterval)
     {
         return;
@@ -519,6 +654,7 @@ void ARldGridManager::UpdateContinuousDebugDraw(float deltaSeconds)
 /** グリッド常時デバッグ描画が有効か判定する */
 bool ARldGridManager::ShouldDrawContinuousDebug() const
 {
+    // 常時デバッグ描画設定が無効な場合は描画しない
     if (!bEnableContinuousDebugDraw)
     {
         return false;
@@ -526,6 +662,7 @@ bool ARldGridManager::ShouldDrawContinuousDebug() const
 
     UWorld* world = GetWorld();
 
+    // World未取得時は描画しない
     if (!world)
     {
         return false;
@@ -533,6 +670,7 @@ bool ARldGridManager::ShouldDrawContinuousDebug() const
 
     const UCmnDebugWorldSubsystem* debugSubsystem = world->GetSubsystem<UCmnDebugWorldSubsystem>();
 
+    // DebugSubsystem未取得時は描画しない
     if (!debugSubsystem)
     {
         return false;
@@ -606,12 +744,13 @@ void ARldGridManager::DrawDebugGridStateInternal(bool bOutputLog) const
         stairsDebugStyle
     );
 
+    // 手動描画時のみ描画完了ログを出力する
     if (bOutputLog)
     {
         UE_LOG(
             LogRldGridManager,
             Log,
-            TEXT("DrawDebugGridState: 床数=%d 壁数=%d 階段座標=(%d,%d)"),
+            TEXT("DrawDebugGridState: グリッドデバッグ描画完了 床数=%d 壁数=%d 階段座標=(%d,%d)"),
             floorCells.Num(),
             wallCells.Num(),
             stairsGridCoord.X,
